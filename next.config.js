@@ -1,8 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['better-sqlite3'],
-  },
+  serverExternalPackages: ['better-sqlite3'],
+  outputFileTracingRoot: __dirname,
 };
 
 module.exports = nextConfig;

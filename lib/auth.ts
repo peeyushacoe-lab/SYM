@@ -35,7 +35,7 @@ export async function verifySession(token: string): Promise<SessionUser | null> 
 
 // For use in Server Components / Route Handlers (reads cookies() store)
 export async function getSessionFromCookies(): Promise<SessionUser | null> {
-  const token = cookies().get(COOKIE_NAME)?.value;
+  const token = (await cookies()).get(COOKIE_NAME)?.value;
   if (!token) return null;
   return verifySession(token);
 }

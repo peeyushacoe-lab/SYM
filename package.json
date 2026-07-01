@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "next": "15.5.5",
+    "next": "16.2.9",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "better-sqlite3": "11.3.0",

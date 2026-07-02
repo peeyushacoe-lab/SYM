@@ -7,21 +7,25 @@ export async function GET(req: NextRequest) {
   if ('error' in auth) return auth.error;
 
   const search = req.nextUrl.searchParams.get('search') || '';
+  const batchId = req.nextUrl.searchParams.get('batch_id') || '';
+  const course = req.nextUrl.searchParams.get('course') || '';
   const db = getDb();
-  const items = search
-    ? db
-        .prepare(
-          `SELECT s.*, b.name as batch_name FROM students s
-           LEFT JOIN batches b ON s.batch_id = b.id
-           WHERE s.name LIKE ? OR s.mobile LIKE ? OR s.roll_number LIKE ? OR s.registration_number LIKE ? OR s.course LIKE ?
-           ORDER BY s.name`
-        )
-        .all(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`)
-    : db
-        .prepare(
-          `SELECT s.*, b.name as batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id ORDER BY s.name`
-        )
-        .all();
+  let query = `SELECT s.*, b.name as batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE 1=1`;
+  const params: any[] = [];
+  if (search) {
+    query += ` AND (s.name LIKE ? OR s.mobile LIKE ? OR s.roll_number LIKE ? OR s.registration_number LIKE ? OR s.course LIKE ?)`;
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+  }
+  if (batchId) {
+    query += ' AND s.batch_id = ?';
+    params.push(batchId);
+  }
+  if (course) {
+    query += ' AND s.course = ?';
+    params.push(course);
+  }
+  query += ' ORDER BY s.name';
+  const items = db.prepare(query).all(...params);
 
   return NextResponse.json({ items });
 }

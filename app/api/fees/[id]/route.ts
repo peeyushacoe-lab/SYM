@@ -13,7 +13,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   const db = getDb();
   db.prepare(
     `UPDATE fees SET course_fee=@course_fee, amount_paid=@amount_paid, remaining_due=@remaining_due,
-     payment_date=@payment_date, payment_mode=@payment_mode, receipt_number=@receipt_number, remarks=@remarks
+     payment_date=@payment_date, payment_mode=@payment_mode, receipt_number=@receipt_number, due_date=@due_date, remarks=@remarks
      WHERE id=@id`
   ).run({
     id: params.id,
@@ -23,6 +23,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
     payment_date: data.payment_date || null,
     payment_mode: data.payment_mode || 'Cash',
     receipt_number: data.receipt_number || null,
+    due_date: data.due_date || null,
     remarks: data.remarks || null,
   });
   return NextResponse.json({ ok: true });

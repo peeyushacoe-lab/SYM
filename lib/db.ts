@@ -1,8 +1,15 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 import bcrypt from 'bcryptjs';
 
-const DB_PATH = path.join(process.cwd(), 'sym.db');
+// Vercel's function filesystem is read-only outside of /tmp. The repo ships a
+// pre-seeded sym.db as a read-only source; on serverless we copy it into /tmp
+// once per instance so better-sqlite3 can open it read-write. Note this means
+// writes only persist for the lifetime of that warm instance, not across
+// deploys/cold starts - fine for demos, not a substitute for a real database.
+const SOURCE_DB_PATH = path.join(process.cwd(), 'sym.db');
+const DB_PATH = process.env.VERCEL ? path.join('/tmp', 'sym.db') : SOURCE_DB_PATH;
 
 declare global {
   // eslint-disable-next-line no-var
@@ -11,6 +18,9 @@ declare global {
 
 function getDb(): Database.Database {
   if (!global.__symDb) {
+    if (process.env.VERCEL && !fs.existsSync(DB_PATH)) {
+      fs.copyFileSync(SOURCE_DB_PATH, DB_PATH);
+    }
     global.__symDb = new Database(DB_PATH);
     global.__symDb.pragma('journal_mode = WAL');
     global.__symDb.pragma('foreign_keys = ON');
@@ -179,6 +189,23 @@ function initSchema(db: Database.Database) {
       FOREIGN KEY (student_id) REFERENCES students(id)
     );
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS courses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      fee REAL DEFAULT 0,
+      duration TEXT,
+      remarks TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // Migration: add due_date to fees if missing
+  const feeCols = db.prepare("PRAGMA table_info(fees)").all() as { name: string }[];
+  if (!feeCols.some((c) => c.name === 'due_date')) {
+    db.exec('ALTER TABLE fees ADD COLUMN due_date TEXT');
+  }
 
   const adminCheck = db.prepare("SELECT id FROM users WHERE username = 'admin'").get();
   if (!adminCheck) {

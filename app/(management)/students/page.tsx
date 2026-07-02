@@ -1,16 +1,30 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import CrudPage from '@/components/CrudPage';
 
 export default function StudentsPage() {
   const [batchOptions, setBatchOptions] = useState<{ value: any; label: string }[]>([]);
+  const [courseOptions, setCourseOptions] = useState<string[]>([]);
+  const [batchFilter, setBatchFilter] = useState('');
+  const [courseFilter, setCourseFilter] = useState('');
 
   useEffect(() => {
     fetch('/api/batches')
       .then((r) => r.json())
       .then((d) => setBatchOptions((d.items || []).map((b: any) => ({ value: b.id, label: b.name }))));
+    fetch('/api/courses')
+      .then((r) => r.json())
+      .then((d) => setCourseOptions((d.items || []).map((c: any) => c.name)));
   }, []);
+
+  const extraQuery = [
+    batchFilter ? `batch_id=${batchFilter}` : '',
+    courseFilter ? `course=${encodeURIComponent(courseFilter)}` : '',
+  ]
+    .filter(Boolean)
+    .join('&');
 
   return (
     <CrudPage
@@ -19,8 +33,50 @@ export default function StudentsPage() {
       endpoint="/api/students"
       searchPlaceholder="Search by name, mobile, roll number..."
       addLabel="Add student"
+      extraQuery={extraQuery}
+      headerActions={
+        <a href="/api/export?type=students" className="btn btn-outline">
+          <span className="material-symbols-outlined text-[18px]">download</span>
+          Export Excel
+        </a>
+      }
+      extraFilters={
+        <>
+          <select className="input max-w-[180px]" value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)}>
+            <option value="">All batches</option>
+            {batchOptions.map((b) => (
+              <option key={b.value} value={b.value}>
+                {b.label}
+              </option>
+            ))}
+          </select>
+          <select className="input max-w-[180px]" value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)}>
+            <option value="">All courses</option>
+            {courseOptions.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </>
+      }
       columns={[
-        { key: 'name', label: 'Name' },
+        {
+          key: 'name',
+          label: 'Name',
+          render: (r) => (
+            <span className="flex items-center gap-2">
+              {r.photo ? (
+                <img src={r.photo} alt="" className="w-7 h-7 rounded-full object-cover border border-border" />
+              ) : (
+                <span className="w-7 h-7 rounded-full bg-surface-container-high text-tertiary flex items-center justify-center text-[10px] font-semibold">
+                  {String(r.name || '?').slice(0, 1).toUpperCase()}
+                </span>
+              )}
+              {r.name}
+            </span>
+          ),
+        },
         { key: 'mobile', label: 'Mobile' },
         { key: 'course', label: 'Course' },
         { key: 'batch_name', label: 'Batch' },
@@ -45,16 +101,22 @@ export default function StudentsPage() {
           ],
         },
         { name: 'qualification', label: 'Qualification' },
-        { name: 'course', label: 'Course' },
+        { name: 'course', label: 'Course', type: 'select', options: courseOptions.map((c) => ({ value: c, label: c })) },
         { name: 'batch_id', label: 'Batch', type: 'select', options: batchOptions },
         { name: 'admission_date', label: 'Admission date', type: 'date' },
         { name: 'roll_number', label: 'Roll number' },
         { name: 'registration_number', label: 'Registration number' },
         { name: 'aadhaar', label: 'Aadhaar number' },
         { name: 'email', label: 'Email', type: 'email' },
+        { name: 'photo', label: 'Photo', type: 'file', span: 2 },
         { name: 'address', label: 'Address', type: 'textarea', span: 2 },
         { name: 'remarks', label: 'Remarks', type: 'textarea', span: 2 },
       ]}
+      extraActions={(row) => (
+        <Link href={`/students/${row.id}`} className="text-tertiary text-xs font-medium hover:underline">
+          View
+        </Link>
+      )}
     />
   );
 }

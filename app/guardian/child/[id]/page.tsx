@@ -144,7 +144,7 @@ export default function ChildDetailPage() {
                 title={a.date}
                 className={`text-[10px] px-2 py-1 rounded ${
                   a.status === 'Present'
-                    ? 'bg-accentLight text-emerald-700'
+                    ? 'bg-accentLight text-accent'
                     : a.status === 'Absent'
                     ? 'bg-dangerLight text-danger'
                     : 'bg-warningLight text-warning'

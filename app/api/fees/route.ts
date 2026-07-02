@@ -7,12 +7,27 @@ export async function GET(req: NextRequest) {
   if ('error' in auth) return auth.error;
   const search = req.nextUrl.searchParams.get('search') || '';
   const dueOnly = req.nextUrl.searchParams.get('due') === '1';
+  const studentId = req.nextUrl.searchParams.get('student_id') || '';
+  const month = req.nextUrl.searchParams.get('month') || '';
   const db = getDb();
-  let query = `SELECT f.*, s.name as student_name, s.mobile, s.batch_id, b.name as batch_name
+  let query = `SELECT f.*, s.name as student_name, s.mobile, s.batch_id, b.name as batch_name,
+      (SELECT gu.name FROM student_guardians sg JOIN users gu ON gu.id = sg.guardian_user_id
+        WHERE sg.student_id = s.id LIMIT 1) as guardian_name,
+      (SELECT gu.mobile FROM student_guardians sg JOIN users gu ON gu.id = sg.guardian_user_id
+        WHERE sg.student_id = s.id LIMIT 1) as guardian_mobile
     FROM fees f LEFT JOIN students s ON f.student_id = s.id
-    LEFT JOIN batches b ON s.batch_id = b.id WHERE 1=1`;
+    LEFT JOIN batches b ON s.batch_id = b.id
+    WHERE 1=1`;
   const params: any[] = [];
   if (dueOnly) query += ' AND f.remaining_due > 0';
+  if (studentId) {
+    query += ' AND f.student_id = ?';
+    params.push(studentId);
+  }
+  if (month) {
+    query += ' AND f.payment_date LIKE ?';
+    params.push(`${month}%`);
+  }
   if (search) {
     query += ' AND (s.name LIKE ? OR s.mobile LIKE ?)';
     params.push(`%${search}%`, `%${search}%`);
@@ -33,8 +48,8 @@ export async function POST(req: NextRequest) {
   const db = getDb();
   const result = db
     .prepare(
-      `INSERT INTO fees (student_id, course_fee, amount_paid, remaining_due, payment_date, payment_mode, receipt_number, remarks)
-       VALUES (@student_id, @course_fee, @amount_paid, @remaining_due, @payment_date, @payment_mode, @receipt_number, @remarks)`
+      `INSERT INTO fees (student_id, course_fee, amount_paid, remaining_due, payment_date, payment_mode, receipt_number, due_date, remarks)
+       VALUES (@student_id, @course_fee, @amount_paid, @remaining_due, @payment_date, @payment_mode, @receipt_number, @due_date, @remarks)`
     )
     .run({
       student_id: data.student_id,
@@ -44,6 +59,7 @@ export async function POST(req: NextRequest) {
       payment_date: data.payment_date || new Date().toISOString().slice(0, 10),
       payment_mode: data.payment_mode || 'Cash',
       receipt_number: data.receipt_number || null,
+      due_date: data.due_date || null,
       remarks: data.remarks || null,
     });
   return NextResponse.json({ id: result.lastInsertRowid });

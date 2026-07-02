@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 
 export interface NavItem {
   href: string;
   label: string;
-  icon?: ReactNode;
+  icon?: string; // Material Symbols name
 }
 
 export default function AppShell({
@@ -23,6 +23,7 @@ export default function AppShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const activeItem = navItems.find((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
   const title = activeItem?.label || 'Overview';
 
@@ -46,59 +47,89 @@ export default function AppShell({
     student: 'Student',
   };
 
+  const nav = (
+    <>
+      <div className="flex items-center gap-2.5 px-3 mb-6">
+        <img src="/logo-128.png" alt="SYM" className="w-10 h-10 object-contain flex-shrink-0" />
+        <div>
+          <h1 className="text-on-surface font-semibold text-lg leading-tight tracking-tight">SYM</h1>
+          <p className="text-on-surface-variant text-[11px]">Siksha Yogi Management</p>
+        </div>
+      </div>
+      <nav className="flex-1 flex flex-col gap-1 overflow-y-auto">
+        {navItems.map((item) => {
+          const active = pathname === item.href || pathname.startsWith(item.href + '/');
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setMobileOpen(false)}
+              className={`flex items-center gap-2.5 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${
+                active
+                  ? 'text-tertiary font-bold bg-white/60 border-l-4 border-tertiary translate-x-1 shadow-soft'
+                  : 'text-on-surface-variant/80 border-l-4 border-transparent hover:text-on-surface hover:bg-white/40'
+              }`}
+            >
+              {item.icon && (
+                <span className={`material-symbols-outlined ${active ? 'filled' : ''}`}>{item.icon}</span>
+              )}
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+      <div className="mt-auto pt-3 border-t border-outline-variant/30">
+        <button
+          onClick={handleLogout}
+          className="w-full text-left flex items-center gap-2.5 px-4 py-2 rounded-lg text-[13px] font-medium text-on-surface-variant/80 hover:text-on-surface hover:bg-white/40 transition-colors"
+        >
+          <span className="material-symbols-outlined">logout</span>
+          Sign Out
+        </button>
+      </div>
+    </>
+  );
+
   return (
     <div className="min-h-screen flex">
-      <aside className="w-56 bg-navBg flex-shrink-0 hidden md:flex md:flex-col">
-        <div className="px-5 py-5 border-b border-white/10 flex items-center gap-2.5">
-          <img src="/logo-64.png" alt="SYM" className="w-9 h-9 object-contain flex-shrink-0" />
-          <div>
-            <div className="text-white font-semibold text-base leading-tight">SYM</div>
-            <div className="text-textLight text-[11px]">Shiksha Yogi ERP</div>
-          </div>
-        </div>
-        <nav className="flex-1 px-2.5 py-3 space-y-0.5 overflow-y-auto">
-          {navItems.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(item.href + '/');
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition ${
-                  active ? 'bg-navActive text-white' : 'text-textLight hover:bg-navActive/60 hover:text-white'
-                }`}
-              >
-                {item.icon || <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${active ? 'bg-primary' : 'bg-textLight'}`} />}
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="px-3 py-3 border-t border-white/10">
-          <button
-            onClick={handleLogout}
-            className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-textLight hover:bg-navActive/60 hover:text-white transition"
-          >
-            Log out
-          </button>
-        </div>
+      {/* Desktop sidebar */}
+      <aside className="w-64 glass-sidebar flex-shrink-0 hidden md:flex md:flex-col py-6 px-3 sticky top-0 h-screen">
+        {nav}
       </aside>
 
-      <main className="flex-1 min-w-0">
-        <header className="bg-white border-b border-border px-5 py-3.5 flex items-center justify-between sticky top-0 z-10">
-          <div>
-            <div className="text-[17px] font-medium text-text">{title}</div>
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-on-surface/20 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute left-0 top-0 h-full w-64 glass-sidebar flex flex-col py-6 px-3 bg-white/95">
+            {nav}
+          </aside>
+        </div>
+      )}
+
+      <main className="flex-1 min-w-0 flex flex-col">
+        <header className="glass-header px-5 py-3 flex items-center justify-between sticky top-0 z-40">
+          <div className="flex items-center gap-2">
+            <button
+              className="md:hidden text-tertiary p-1.5 hover:bg-white/50 rounded-lg transition-all"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Open menu"
+            >
+              <span className="material-symbols-outlined">menu</span>
+            </button>
+            <div className="text-[16px] font-semibold text-on-surface">{title}</div>
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
-              <div className="text-[13px] font-medium text-text">{name}</div>
-              <div className="text-[11px] text-textSecondary">{roleLabel[role] || role}</div>
+              <div className="text-[13px] font-medium text-on-surface">{name}</div>
+              <div className="text-[11px] text-on-surface-variant">{roleLabel[role] || role}</div>
             </div>
-            <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-xs font-medium">
+            <div className="w-9 h-9 rounded-full bg-tertiary text-white flex items-center justify-center text-xs font-semibold shadow-soft border border-white">
               {initials || '?'}
             </div>
           </div>
         </header>
-        <div className="p-5">{children}</div>
+        <div className="p-5 max-w-7xl w-full mx-auto flex-1">{children}</div>
       </main>
     </div>
   );

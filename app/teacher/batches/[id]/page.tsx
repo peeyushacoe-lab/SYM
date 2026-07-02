@@ -106,7 +106,7 @@ export default function TeacherBatchPage() {
                           className={`text-xs px-2.5 py-1 rounded-md border transition ${
                             statusMap[s.id] === opt
                               ? opt === 'Present'
-                                ? 'bg-accentLight text-emerald-700 border-accentBorder'
+                                ? 'bg-accentLight text-accent border-accentBorder'
                                 : opt === 'Absent'
                                 ? 'bg-dangerLight text-danger border-dangerBorder'
                                 : 'bg-warningLight text-warning border-warningBorder'

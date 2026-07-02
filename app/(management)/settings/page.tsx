@@ -100,15 +100,66 @@ function BackupTab() {
     URL.revokeObjectURL(url);
   }
 
+  const [restoreMsg, setRestoreMsg] = useState('');
+  const [restoring, setRestoring] = useState(false);
+
+  async function restore(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!confirm('Restoring will REPLACE all current students, batches, staff, enquiries, fees and expenses with the backup contents. Continue?')) {
+      e.target.value = '';
+      return;
+    }
+    setRestoring(true);
+    setRestoreMsg('');
+    try {
+      const text = await file.text();
+      const res = await fetch('/api/settings/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: text,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRestoreMsg(data.error || 'Restore failed.');
+      } else {
+        const total = Object.values(data.counts as Record<string, number>).reduce((a, b) => a + b, 0);
+        setRestoreMsg(`Restore complete — ${total} records imported.`);
+      }
+    } catch {
+      setRestoreMsg('Could not read that file.');
+    }
+    setRestoring(false);
+    e.target.value = '';
+  }
+
   return (
-    <div className="card max-w-sm space-y-3">
-      <div className="text-[13px] font-medium text-text">Export data</div>
-      <p className="text-sm text-textSecondary">
-        Download a full backup of students, batches, staff, enquiries, fees and expenses as a JSON file.
-      </p>
-      <button onClick={download} className="btn btn-primary">
-        Download backup
-      </button>
+    <div className="space-y-4 max-w-sm">
+      <div className="card space-y-3">
+        <div className="text-[13px] font-semibold text-on-surface">Backup</div>
+        <p className="text-sm text-on-surface-variant">
+          Download a full backup of students, batches, staff, enquiries, fees and expenses as a JSON file.
+        </p>
+        <button onClick={download} className="btn btn-primary">
+          <span className="material-symbols-outlined text-[18px]">download</span>
+          Download backup
+        </button>
+      </div>
+
+      <div className="card space-y-3">
+        <div className="text-[13px] font-semibold text-on-surface">Restore</div>
+        <p className="text-sm text-on-surface-variant">
+          Upload a previously downloaded backup file to restore your data. This replaces all current records.
+        </p>
+        <label className="btn btn-outline cursor-pointer w-fit">
+          <span className="material-symbols-outlined text-[18px]">upload</span>
+          {restoring ? 'Restoring...' : 'Upload backup file'}
+          <input type="file" accept="application/json,.json" className="hidden" onChange={restore} disabled={restoring} />
+        </label>
+        {restoreMsg && (
+          <p className={`text-sm ${restoreMsg.startsWith('Restore complete') ? 'text-accent' : 'text-danger'}`}>{restoreMsg}</p>
+        )}
+      </div>
     </div>
   );
 }

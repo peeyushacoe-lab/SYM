@@ -6,12 +6,20 @@ export async function GET(req: NextRequest) {
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const search = req.nextUrl.searchParams.get('search') || '';
+  const month = req.nextUrl.searchParams.get('month') || '';
   const db = getDb();
-  const items = search
-    ? db
-        .prepare('SELECT * FROM expenses WHERE category LIKE ? OR description LIKE ? ORDER BY expense_date DESC')
-        .all(`%${search}%`, `%${search}%`)
-    : db.prepare('SELECT * FROM expenses ORDER BY expense_date DESC').all();
+  let query = 'SELECT * FROM expenses WHERE 1=1';
+  const params: any[] = [];
+  if (search) {
+    query += ' AND (category LIKE ? OR description LIKE ?)';
+    params.push(`%${search}%`, `%${search}%`);
+  }
+  if (month) {
+    query += ' AND expense_date LIKE ?';
+    params.push(`${month}%`);
+  }
+  query += ' ORDER BY expense_date DESC';
+  const items = db.prepare(query).all(...params);
   return NextResponse.json({ items });
 }
 

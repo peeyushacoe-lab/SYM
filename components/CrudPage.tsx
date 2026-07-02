@@ -11,11 +11,32 @@ export interface FieldOption {
 export interface FieldDef {
   name: string;
   label: string;
-  type?: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'tel' | 'email';
+  type?: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'tel' | 'email' | 'file';
   options?: FieldOption[];
   required?: boolean;
   span?: 1 | 2;
   placeholder?: string;
+}
+
+function readImageAsDataUrl(file: File, maxSize = 320): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = reject;
+      img.src = reader.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 export interface ColumnDef {
@@ -37,6 +58,8 @@ export default function CrudPage({
   canDelete = true,
   extraActions,
   extraFilters,
+  extraQuery = '',
+  headerActions,
 }: {
   title: string;
   subtitle?: string;
@@ -50,6 +73,8 @@ export default function CrudPage({
   canDelete?: boolean;
   extraActions?: (row: any, reload: () => void) => React.ReactNode;
   extraFilters?: React.ReactNode;
+  extraQuery?: string;
+  headerActions?: React.ReactNode;
 }) {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,12 +87,15 @@ export default function CrudPage({
 
   const load = useCallback(async () => {
     setLoading(true);
-    const q = search ? `?search=${encodeURIComponent(search)}` : '';
+    const parts = [];
+    if (search) parts.push(`search=${encodeURIComponent(search)}`);
+    if (extraQuery) parts.push(extraQuery);
+    const q = parts.length ? `?${parts.join('&')}` : '';
     const res = await fetch(`${endpoint}${q}`);
     const data = await res.json();
     setRows(data.items || []);
     setLoading(false);
-  }, [endpoint, search]);
+  }, [endpoint, search, extraQuery]);
 
   useEffect(() => {
     const t = setTimeout(load, 250);
@@ -124,14 +152,17 @@ export default function CrudPage({
     <div>
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div>
-          <h1 className="text-lg font-medium text-text">{title}</h1>
-          {subtitle && <p className="text-xs text-textSecondary mt-0.5">{subtitle}</p>}
+          <h1 className="text-[22px] font-semibold tracking-tight text-on-surface">{title}</h1>
+          {subtitle && <p className="text-xs text-on-surface-variant mt-0.5">{subtitle}</p>}
         </div>
-        {canAdd && (
-          <button onClick={openAdd} className="btn btn-primary">
-            + {addLabel}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {headerActions}
+          {canAdd && (
+            <button onClick={openAdd} className="btn btn-primary">
+              + {addLabel}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -147,7 +178,7 @@ export default function CrudPage({
       <div className="card p-0 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border text-left">
+            <tr className="border-b border-outline-variant/40 bg-surface-container-low/60 text-left">
               {columns.map((c) => (
                 <th key={c.key} className="px-4 py-2.5 text-[11px] font-medium text-textSecondary uppercase tracking-wide whitespace-nowrap">
                   {c.label}
@@ -173,7 +204,7 @@ export default function CrudPage({
               </tr>
             ) : (
               rows.map((row) => (
-                <tr key={row.id} className="border-b border-borderLight last:border-0 hover:bg-surface/60">
+                <tr key={row.id} className="border-b border-outline-variant/25 last:border-0 hover:bg-surface-container-low/70 transition-colors">
                   {columns.map((c) => (
                     <td key={c.key} className="px-4 py-2.5 text-text whitespace-nowrap">
                       {c.render ? c.render(row) : row[c.key] ?? '-'}
@@ -228,6 +259,24 @@ export default function CrudPage({
                       </option>
                     ))}
                   </select>
+                ) : f.type === 'file' ? (
+                  <div className="flex items-center gap-3">
+                    {form[f.name] && (
+                      <img src={form[f.name]} alt="Preview" className="w-14 h-14 rounded-lg object-cover border border-border" />
+                    )}
+                    <input
+                      className="input"
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const dataUrl = await readImageAsDataUrl(file);
+                          setForm({ ...form, [f.name]: dataUrl });
+                        }
+                      }}
+                    />
+                  </div>
                 ) : f.type === 'textarea' ? (
                   <textarea
                     className="input"

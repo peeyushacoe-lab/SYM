@@ -16,11 +16,15 @@ const MANAGEMENT_PREFIXES = [
   '/notices',
 ];
 
+function matchesPrefix(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(prefix + '/');
+}
+
 function roleForPath(pathname: string): Role | null {
-  if (pathname.startsWith('/teacher')) return 'teacher';
-  if (pathname.startsWith('/guardian')) return 'guardian';
-  if (pathname.startsWith('/student')) return 'student';
-  if (MANAGEMENT_PREFIXES.some((p) => pathname.startsWith(p))) return 'management';
+  if (matchesPrefix(pathname, '/teacher')) return 'teacher';
+  if (matchesPrefix(pathname, '/guardian')) return 'guardian';
+  if (matchesPrefix(pathname, '/student')) return 'student';
+  if (MANAGEMENT_PREFIXES.some((p) => matchesPrefix(pathname, p))) return 'management';
   return null;
 }
 

@@ -24,7 +24,12 @@ export default function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const activeItem = navItems.find((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
+  const activeItem = navItems.reduce<NavItem | undefined>((best, item) => {
+    const matches = pathname === item.href || pathname.startsWith(item.href + '/');
+    if (!matches) return best;
+    if (!best || item.href.length > best.href.length) return item;
+    return best;
+  }, undefined);
   const title = activeItem?.label || 'Overview';
 
   async function handleLogout() {
@@ -58,7 +63,7 @@ export default function AppShell({
       </div>
       <nav className="flex-1 flex flex-col gap-1 overflow-y-auto">
         {navItems.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + '/');
+          const active = item.href === activeItem?.href;
           return (
             <Link
               key={item.href}

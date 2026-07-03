@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import getDb from '@/lib/db';
 import { requireRole } from '@/lib/api-auth';
 import { buildReceiptPdf } from '@/lib/receipt-pdf';
+import { getStudentByUserId, guardianOwnsStudent } from '@/lib/portal';
 
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-  const auth = await requireRole('management');
+  const auth = await requireRole('management', 'student', 'guardian');
   if ('error' in auth) return auth.error;
   const params = await props.params;
   const db = getDb();
@@ -16,6 +17,16 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
     )
     .get(params.id) as any;
   if (!row) return NextResponse.json({ error: 'Fee record not found.' }, { status: 404 });
+
+  // Students can only fetch their own receipts; guardians only their children's.
+  if (auth.session.role === 'student') {
+    const student = getStudentByUserId(auth.session.id);
+    if (!student || student.id !== row.student_id) {
+      return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
+    }
+  } else if (auth.session.role === 'guardian' && !guardianOwnsStudent(auth.session.id, row.student_id)) {
+    return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
+  }
 
   const pdf = await buildReceiptPdf(row);
   return new NextResponse(new Uint8Array(pdf), {

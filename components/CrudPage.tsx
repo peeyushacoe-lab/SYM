@@ -11,11 +11,16 @@ export interface FieldOption {
 export interface FieldDef {
   name: string;
   label: string;
-  type?: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'tel' | 'email' | 'file';
+  type?: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'tel' | 'email' | 'file' | 'checkbox';
   options?: FieldOption[];
   required?: boolean;
   span?: 1 | 2;
   placeholder?: string;
+  defaultValue?: string | number;
+  // Only render this field when the condition holds for the current form values
+  showIf?: (form: Record<string, any>) => boolean;
+  // Small helper text under the field
+  hint?: string;
 }
 
 function readImageAsDataUrl(file: File, maxSize = 320): Promise<string> {
@@ -104,7 +109,7 @@ export default function CrudPage({
 
   function openAdd() {
     const initial: Record<string, any> = {};
-    fields.forEach((f) => (initial[f.name] = ''));
+    fields.forEach((f) => (initial[f.name] = f.defaultValue ?? (f.type === 'checkbox' ? 0 : '')));
     setForm(initial);
     setEditing(null);
     setError('');
@@ -113,7 +118,7 @@ export default function CrudPage({
 
   function openEdit(row: any) {
     const initial: Record<string, any> = {};
-    fields.forEach((f) => (initial[f.name] = row[f.name] ?? ''));
+    fields.forEach((f) => (initial[f.name] = row[f.name] ?? f.defaultValue ?? (f.type === 'checkbox' ? 0 : '')));
     setForm(initial);
     setEditing(row);
     setError('');
@@ -240,12 +245,30 @@ export default function CrudPage({
             <div className="text-sm text-danger bg-dangerLight border border-dangerBorder rounded-lg px-3 py-2">{error}</div>
           )}
           <div className="grid grid-cols-2 gap-3">
-            {fields.map((f) => (
+            {fields.map((f) => {
+              if (f.showIf && !f.showIf(form)) return null;
+              return (
               <div key={f.name} className={f.span === 2 ? 'col-span-2' : 'col-span-1'}>
                 <label className="label">
                   {f.label} {f.required && <span className="text-danger">*</span>}
                 </label>
-                {f.type === 'select' ? (
+                {f.type === 'checkbox' ? (
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={!!Number(form[f.name])}
+                    onClick={() => setForm({ ...form, [f.name]: Number(form[f.name]) ? 0 : 1 })}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      Number(form[f.name]) ? 'bg-tertiary' : 'bg-outline-variant'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                        Number(form[f.name]) ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                ) : f.type === 'select' ? (
                   <select
                     className="input"
                     required={f.required}
@@ -295,8 +318,10 @@ export default function CrudPage({
                     placeholder={f.placeholder}
                   />
                 )}
+                {f.hint && <p className="text-[11px] text-textSecondary mt-1">{f.hint}</p>}
               </div>
-            ))}
+              );
+            })}
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={() => setModalOpen(false)} className="btn btn-outline">

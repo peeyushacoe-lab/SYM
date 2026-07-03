@@ -201,10 +201,101 @@ function initSchema(db: Database.Database) {
     );
   `);
 
-  // Migration: add due_date to fees if missing
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS exams (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      batch_id INTEGER NOT NULL,
+      subject TEXT,
+      exam_date TEXT,
+      max_marks REAL DEFAULT 100,
+      created_by INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (batch_id) REFERENCES batches(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS exam_marks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      exam_id INTEGER NOT NULL,
+      student_id INTEGER NOT NULL,
+      marks REAL,
+      remarks TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(exam_id, student_id),
+      FOREIGN KEY (exam_id) REFERENCES exams(id),
+      FOREIGN KEY (student_id) REFERENCES students(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS timetable_slots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      batch_id INTEGER NOT NULL,
+      day INTEGER NOT NULL,
+      start_time TEXT NOT NULL,
+      end_time TEXT,
+      subject TEXT NOT NULL,
+      teacher_user_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (batch_id) REFERENCES batches(id),
+      FOREIGN KEY (teacher_user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS leave_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL,
+      requested_by INTEGER NOT NULL,
+      from_date TEXT NOT NULL,
+      to_date TEXT NOT NULL,
+      reason TEXT,
+      status TEXT NOT NULL DEFAULT 'Pending',
+      response_note TEXT,
+      responded_by INTEGER,
+      responded_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (student_id) REFERENCES students(id),
+      FOREIGN KEY (requested_by) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS queries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER,
+      raised_by INTEGER NOT NULL,
+      subject TEXT NOT NULL,
+      message TEXT,
+      status TEXT NOT NULL DEFAULT 'Open',
+      response TEXT,
+      responded_by INTEGER,
+      responded_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (student_id) REFERENCES students(id),
+      FOREIGN KEY (raised_by) REFERENCES users(id)
+    );
+  `);
+
+  // Migration: add due_date + fee_type to fees if missing
   const feeCols = db.prepare("PRAGMA table_info(fees)").all() as { name: string }[];
   if (!feeCols.some((c) => c.name === 'due_date')) {
     db.exec('ALTER TABLE fees ADD COLUMN due_date TEXT');
+  }
+  if (!feeCols.some((c) => c.name === 'fee_type')) {
+    db.exec("ALTER TABLE fees ADD COLUMN fee_type TEXT DEFAULT 'CourseWise'");
+  }
+
+  // Migration: fee plan on students (assigned when the student is added to a batch)
+  const studentCols = db.prepare('PRAGMA table_info(students)').all() as { name: string }[];
+  if (!studentCols.some((c) => c.name === 'fee_category')) {
+    db.exec("ALTER TABLE students ADD COLUMN fee_category TEXT DEFAULT 'Default'");
+  }
+  if (!studentCols.some((c) => c.name === 'fee_type')) {
+    db.exec("ALTER TABLE students ADD COLUMN fee_type TEXT DEFAULT 'CourseWise'");
+  }
+  if (!studentCols.some((c) => c.name === 'fee_amount')) {
+    db.exec('ALTER TABLE students ADD COLUMN fee_amount REAL');
+  }
+
+  // Migration: advance fee toggle per batch (applies to all students in the batch)
+  const batchCols = db.prepare('PRAGMA table_info(batches)').all() as { name: string }[];
+  if (!batchCols.some((c) => c.name === 'advance_fee')) {
+    db.exec('ALTER TABLE batches ADD COLUMN advance_fee INTEGER DEFAULT 0');
   }
 
   const adminCheck = db.prepare("SELECT id FROM users WHERE username = 'admin'").get();

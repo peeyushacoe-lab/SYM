@@ -82,6 +82,16 @@ export default function BatchesPage() {
           { key: 'timing', label: 'Timing' },
           { key: 'student_count', label: 'Students' },
           { key: 'capacity', label: 'Capacity' },
+          {
+            key: 'advance_fee',
+            label: 'Advance fee',
+            render: (r) =>
+              Number(r.advance_fee) ? (
+                <span className="badge badge-green">On</span>
+              ) : (
+                <span className="badge badge-gray">Off</span>
+              ),
+          },
           { key: 'start_date', label: 'Start date' },
         ]}
         fields={[
@@ -91,6 +101,13 @@ export default function BatchesPage() {
           { name: 'capacity', label: 'Capacity', type: 'number' },
           { name: 'start_date', label: 'Start date', type: 'date' },
           { name: 'end_date', label: 'End date', type: 'date' },
+          {
+            name: 'advance_fee',
+            label: 'Advance fee',
+            type: 'checkbox',
+            span: 2,
+            hint: 'When on, fees for ALL students in this batch are collected in advance. When off, it is off for all of them.',
+          },
           { name: 'remarks', label: 'Remarks', type: 'textarea', span: 2 },
         ]}
         extraActions={(row) => (

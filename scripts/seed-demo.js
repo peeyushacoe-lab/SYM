@@ -35,8 +35,42 @@ function fullName(male) {
 
 const now = new Date().toISOString();
 
+// Ensure portal tables exist (mirrors lib/db.ts initSchema)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS exams (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, batch_id INTEGER NOT NULL,
+    subject TEXT, exam_date TEXT, max_marks REAL DEFAULT 100, created_by INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (batch_id) REFERENCES batches(id));
+  CREATE TABLE IF NOT EXISTS exam_marks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, exam_id INTEGER NOT NULL, student_id INTEGER NOT NULL,
+    marks REAL, remarks TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(exam_id, student_id),
+    FOREIGN KEY (exam_id) REFERENCES exams(id), FOREIGN KEY (student_id) REFERENCES students(id));
+  CREATE TABLE IF NOT EXISTS timetable_slots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id INTEGER NOT NULL, day INTEGER NOT NULL,
+    start_time TEXT NOT NULL, end_time TEXT, subject TEXT NOT NULL, teacher_user_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (batch_id) REFERENCES batches(id), FOREIGN KEY (teacher_user_id) REFERENCES users(id));
+  CREATE TABLE IF NOT EXISTS leave_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, student_id INTEGER NOT NULL, requested_by INTEGER NOT NULL,
+    from_date TEXT NOT NULL, to_date TEXT NOT NULL, reason TEXT, status TEXT NOT NULL DEFAULT 'Pending',
+    response_note TEXT, responded_by INTEGER, responded_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES students(id), FOREIGN KEY (requested_by) REFERENCES users(id));
+  CREATE TABLE IF NOT EXISTS queries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, student_id INTEGER, raised_by INTEGER NOT NULL,
+    subject TEXT NOT NULL, message TEXT, status TEXT NOT NULL DEFAULT 'Open', response TEXT,
+    responded_by INTEGER, responded_at DATETIME, created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES students(id), FOREIGN KEY (raised_by) REFERENCES users(id));
+`);
+
 console.log('Clearing existing demo data...');
 db.exec(`
+  DELETE FROM exam_marks;
+  DELETE FROM exams;
+  DELETE FROM timetable_slots;
+  DELETE FROM leave_requests;
+  DELETE FROM queries;
   DELETE FROM payments;
   DELETE FROM attendance;
   DELETE FROM student_guardians;
@@ -325,7 +359,7 @@ for (const batch of batchIds.slice(0, 2)) {
   const batchStudents = studentIds.filter((s) => s.batchId === batch.id);
   let dayOffset = 0;
   let daysMarked = 0;
-  while (daysMarked < 10 && dayOffset < 20) {
+  while (daysMarked < 45 && dayOffset < 70) {
     const d = new Date();
     d.setDate(d.getDate() - dayOffset);
     dayOffset++;
@@ -337,7 +371,99 @@ for (const batch of batchIds.slice(0, 2)) {
     daysMarked++;
   }
 }
-console.log('Seeded attendance for 2 batches over last ~10 working days');
+console.log('Seeded attendance for 2 batches over last ~45 working days');
+
+
+// --- Timetable slots (batches with assigned teachers) ---
+const SUBJECTS_BY_COURSE = {
+  'NEET': ['Physics', 'Chemistry', 'Biology'],
+  'NEET PG': ['Anatomy', 'Physiology', 'Pathology'],
+};
+const insSlot = db.prepare(
+  'INSERT INTO timetable_slots (batch_id, day, start_time, end_time, subject, teacher_user_id) VALUES (?, ?, ?, ?, ?, ?)'
+);
+const slotTeachers = [teacherUser1.lastInsertRowid, teacherUser1.lastInsertRowid, teacherUser2.lastInsertRowid];
+[0, 1, 2].forEach((bi, idx) => {
+  const batch = batchIds[bi];
+  const subjects = SUBJECTS_BY_COURSE[batch.course] || ['General Studies', 'Practice Test', 'Doubt Session'];
+  const startHours = bi === 0 ? ['06:00', '07:00', '08:00'] : bi === 1 ? ['16:00', '17:00', '18:00'] : ['19:00', '20:00'];
+  for (let day = 0; day < 6; day++) { // Mon-Sat
+    startHours.forEach((st, si) => {
+      const subject = subjects[(day + si) % subjects.length];
+      const end = String(Number(st.slice(0, 2)) + 1).padStart(2, '0') + ':00';
+      insSlot.run(batch.id, day, st, end, subject, slotTeachers[idx]);
+    });
+  }
+});
+console.log('Seeded timetable slots for 3 batches');
+
+// --- Exams & marks ---
+const insExam = db.prepare(
+  'INSERT INTO exams (name, batch_id, subject, exam_date, max_marks, created_by) VALUES (?, ?, ?, ?, ?, ?)'
+);
+const insMark = db.prepare(
+  'INSERT OR IGNORE INTO exam_marks (exam_id, student_id, marks, remarks) VALUES (?, ?, ?, ?)'
+);
+const adminRow = db.prepare("SELECT id FROM users WHERE username = 'admin'").get();
+[0, 1, 2].forEach((bi, idx) => {
+  const batch = batchIds[bi];
+  const subjects = SUBJECTS_BY_COURSE[batch.course] || ['General Studies'];
+  const batchStudents = studentIds.filter((s) => s.batchId === batch.id);
+  const examDefs = [
+    { name: 'Unit Test 1', daysBack: 45, complete: true },
+    { name: 'Unit Test 2', daysBack: 20, complete: true },
+    { name: 'Mock Test', daysBack: 4, complete: false },
+  ];
+  for (const def of examDefs) {
+    const info = insExam.run(def.name, batch.id, rand(subjects), daysAgo(def.daysBack), 100, slotTeachers[idx]);
+    for (const s of batchStudents) {
+      if (!def.complete && Math.random() > 0.5) continue; // latest exam partially marked
+      const marks = randInt(32, 98);
+      insMark.run(info.lastInsertRowid, s.id, marks, marks < 40 ? 'Needs improvement' : marks > 90 ? 'Excellent' : null);
+    }
+  }
+});
+console.log('Seeded 9 exams with marks');
+
+// --- Leave requests ---
+const insLeave = db.prepare(
+  `INSERT INTO leave_requests (student_id, requested_by, from_date, to_date, reason, status, response_note, responded_by, responded_at)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+);
+insLeave.run(studentIds[0].id, demoStudentUserId, daysAgo(12), daysAgo(10), 'Fever and doctor advised rest.', 'Approved', 'Get well soon. Approved.', adminRow.id, now);
+insLeave.run(studentIds[0].id, guardianUser.lastInsertRowid, daysAgo(-3), daysAgo(-5), 'Family function out of town.', 'Pending', null, null, null);
+insLeave.run(studentIds[0].id, demoStudentUserId, daysAgo(30), daysAgo(29), 'Not feeling well.', 'Rejected', 'Mock test scheduled that day, please attend.', adminRow.id, now);
+console.log('Seeded 3 leave requests');
+
+// --- Queries ---
+const insQuery = db.prepare(
+  `INSERT INTO queries (student_id, raised_by, subject, message, status, response, responded_by, responded_at)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+);
+insQuery.run(studentIds[0].id, demoStudentUserId, 'Extra classes for Physics', 'Can we get one extra doubt-clearing session for Physics before the mock test?', 'Answered', 'Yes, an extra session is scheduled this Saturday at 10 AM.', adminRow.id, now);
+insQuery.run(studentIds[0].id, demoStudentUserId, 'Study material for Biology', 'Where can I get the printed notes for the last Biology unit?', 'Open', null, null, null);
+insQuery.run(studentIds[0].id, guardianUser.lastInsertRowid, 'Fee installment date', 'Can the next installment date be moved by a week?', 'Open', null, null, null);
+console.log('Seeded 3 queries');
+
+
+// --- Fee plan columns (fee_type / fee_category / advance_fee) ---
+const addColumnIfMissing = (table, column, ddl) => {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!cols.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+};
+addColumnIfMissing('students', 'fee_category', "fee_category TEXT DEFAULT 'Default'");
+addColumnIfMissing('students', 'fee_type', "fee_type TEXT DEFAULT 'CourseWise'");
+addColumnIfMissing('students', 'fee_amount', 'fee_amount REAL');
+addColumnIfMissing('fees', 'fee_type', "fee_type TEXT DEFAULT 'CourseWise'");
+addColumnIfMissing('batches', 'advance_fee', 'advance_fee INTEGER DEFAULT 0');
+
+const FEE_TYPES = ['Monthly', 'CourseWise', 'CourseWise', 'OneTime', 'Quarterly', 'Installment'];
+const setFeeType = db.prepare('UPDATE students SET fee_category = ?, fee_type = ? WHERE id = ?');
+for (const s of studentIds) setFeeType.run('Default', rand(FEE_TYPES), s.id);
+db.prepare("UPDATE students SET fee_type='Monthly' WHERE id = ?").run(studentIds[0].id);
+db.exec('UPDATE fees SET fee_type = (SELECT fee_type FROM students s WHERE s.id = fees.student_id)');
+db.prepare('UPDATE batches SET advance_fee = 1 WHERE id IN (?, ?)').run(batchIds[0].id, batchIds[5].id);
+console.log('Applied fee types to students/fees and advance fee to 2 batches');
 
 console.log('\nDemo data seeding complete.');
 console.log('Demo logins: admin/admin123 (management), teacher1/teacher123, guardian1/guardian123, student1/student123');

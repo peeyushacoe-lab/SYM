@@ -6,3 +6,5 @@ sym.db-wal
 .DS_Store
 .claude/
 tsconfig.tsbuildinfo
+.vercel
+.fuse_hidden*

@@ -96,7 +96,21 @@ export default function FeesPage() {
       }
       columns={[
         { key: 'student_name', label: 'Student' },
-        { key: 'batch_name', label: 'Batch' },
+        {
+          key: 'batch_name',
+          label: 'Batch',
+          render: (r) => (
+            <span className="flex items-center gap-1.5">
+              {r.batch_name || '-'}
+              {Number(r.advance_fee) ? <span className="badge badge-amber">Advance</span> : null}
+            </span>
+          ),
+        },
+        {
+          key: 'fee_type',
+          label: 'Fee type',
+          render: (r) => <span className="badge badge-blue">{r.fee_type || 'CourseWise'}</span>,
+        },
         { key: 'course_fee', label: 'Course fee', render: (r) => formatCurrency(r.course_fee) },
         { key: 'amount_paid', label: 'Paid', render: (r) => formatCurrency(r.amount_paid) },
         {
@@ -112,6 +126,20 @@ export default function FeesPage() {
       ]}
       fields={[
         { name: 'student_id', label: 'Student', type: 'select', required: true, options: studentOptions, span: 2 },
+        {
+          name: 'fee_type',
+          label: 'Fee type',
+          type: 'select',
+          defaultValue: 'CourseWise',
+          options: [
+            { value: 'Monthly', label: 'Monthly' },
+            { value: 'CourseWise', label: 'CourseWise' },
+            { value: 'OneTime', label: 'OneTime' },
+            { value: 'Quarterly', label: 'Quarterly' },
+            { value: 'Installment', label: 'Installment' },
+          ],
+          hint: 'Defaults to the fee type assigned to the student.',
+        },
         { name: 'course_fee', label: 'Total course fee', type: 'number', required: true },
         { name: 'amount_paid', label: 'Amount paid now', type: 'number', required: true },
         { name: 'payment_date', label: 'Payment date', type: 'date' },

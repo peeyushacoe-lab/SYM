@@ -44,10 +44,10 @@ export async function POST(req: NextRequest) {
     .prepare(
       `INSERT INTO students (name, father_name, mother_name, mobile, alt_mobile, address, dob, gender,
         qualification, course, batch_id, admission_date, roll_number, registration_number,
-        aadhaar, photo, email, remarks)
+        aadhaar, photo, email, remarks, fee_category, fee_type, fee_amount)
        VALUES (@name, @father_name, @mother_name, @mobile, @alt_mobile, @address, @dob, @gender,
         @qualification, @course, @batch_id, @admission_date, @roll_number, @registration_number,
-        @aadhaar, @photo, @email, @remarks)`
+        @aadhaar, @photo, @email, @remarks, @fee_category, @fee_type, @fee_amount)`
     )
     .run({
       name: data.name,
@@ -68,6 +68,9 @@ export async function POST(req: NextRequest) {
       photo: data.photo || null,
       email: data.email || null,
       remarks: data.remarks || null,
+      fee_category: data.fee_category || 'Default',
+      fee_type: data.fee_type || 'CourseWise',
+      fee_amount: data.fee_category === 'Custom' && data.fee_amount ? Number(data.fee_amount) : null,
     });
 
   return NextResponse.json({ id: result.lastInsertRowid });

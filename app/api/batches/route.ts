@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   const db = getDb();
   const result = db
     .prepare(
-      'INSERT INTO batches (name, course, start_date, end_date, timing, capacity, remarks) VALUES (@name, @course, @start_date, @end_date, @timing, @capacity, @remarks)'
+      'INSERT INTO batches (name, course, start_date, end_date, timing, capacity, remarks, advance_fee) VALUES (@name, @course, @start_date, @end_date, @timing, @capacity, @remarks, @advance_fee)'
     )
     .run({
       name: data.name,
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
       timing: data.timing || null,
       capacity: data.capacity || 30,
       remarks: data.remarks || null,
+      advance_fee: Number(data.advance_fee) ? 1 : 0,
     });
   return NextResponse.json({ id: result.lastInsertRowid });
 }

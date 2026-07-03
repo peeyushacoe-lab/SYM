@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const studentId = req.nextUrl.searchParams.get('student_id') || '';
   const month = req.nextUrl.searchParams.get('month') || '';
   const db = getDb();
-  let query = `SELECT f.*, s.name as student_name, s.mobile, s.batch_id, b.name as batch_name,
+  let query = `SELECT f.*, s.name as student_name, s.mobile, s.batch_id, b.name as batch_name, b.advance_fee,
       (SELECT gu.name FROM student_guardians sg JOIN users gu ON gu.id = sg.guardian_user_id
         WHERE sg.student_id = s.id LIMIT 1) as guardian_name,
       (SELECT gu.mobile FROM student_guardians sg JOIN users gu ON gu.id = sg.guardian_user_id
@@ -46,13 +46,16 @@ export async function POST(req: NextRequest) {
   const amountPaid = Number(data.amount_paid) || 0;
   const remainingDue = Math.max(courseFee - amountPaid, 0);
   const db = getDb();
+  // Default the fee type from the student's assigned fee plan
+  const student = db.prepare('SELECT fee_type FROM students WHERE id = ?').get(data.student_id) as any;
   const result = db
     .prepare(
-      `INSERT INTO fees (student_id, course_fee, amount_paid, remaining_due, payment_date, payment_mode, receipt_number, due_date, remarks)
-       VALUES (@student_id, @course_fee, @amount_paid, @remaining_due, @payment_date, @payment_mode, @receipt_number, @due_date, @remarks)`
+      `INSERT INTO fees (student_id, course_fee, amount_paid, remaining_due, payment_date, payment_mode, receipt_number, due_date, remarks, fee_type)
+       VALUES (@student_id, @course_fee, @amount_paid, @remaining_due, @payment_date, @payment_mode, @receipt_number, @due_date, @remarks, @fee_type)`
     )
     .run({
       student_id: data.student_id,
+      fee_type: data.fee_type || student?.fee_type || 'CourseWise',
       course_fee: courseFee,
       amount_paid: amountPaid,
       remaining_due: remainingDue,

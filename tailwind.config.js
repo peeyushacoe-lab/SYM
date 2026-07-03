@@ -23,6 +23,7 @@ module.exports = {
         navBg: '#ffffff',
         navActive: '#e5eeff',
         border: '#dbe6f7',
+        borderLight: '#e9f0fb',
         text: '#0c1c2e',
         textSecondary: '#444748',
         textLight: '#63696b',

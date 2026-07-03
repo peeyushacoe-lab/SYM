@@ -24,7 +24,8 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
     `UPDATE students SET name=@name, father_name=@father_name, mother_name=@mother_name, mobile=@mobile,
      alt_mobile=@alt_mobile, address=@address, dob=@dob, gender=@gender, qualification=@qualification,
      course=@course, batch_id=@batch_id, admission_date=@admission_date, roll_number=@roll_number,
-     registration_number=@registration_number, aadhaar=@aadhaar, photo=@photo, email=@email, remarks=@remarks
+     registration_number=@registration_number, aadhaar=@aadhaar, photo=@photo, email=@email, remarks=@remarks,
+     fee_category=@fee_category, fee_type=@fee_type, fee_amount=@fee_amount
      WHERE id=@id`
   ).run({
     id: params.id,
@@ -46,6 +47,9 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
     photo: data.photo || null,
     email: data.email || null,
     remarks: data.remarks || null,
+    fee_category: data.fee_category || 'Default',
+    fee_type: data.fee_type || 'CourseWise',
+    fee_amount: data.fee_category === 'Custom' && data.fee_amount ? Number(data.fee_amount) : null,
   });
   return NextResponse.json({ ok: true });
 }

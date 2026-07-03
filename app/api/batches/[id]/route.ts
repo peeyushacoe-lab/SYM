@@ -9,7 +9,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   const data = await req.json();
   const db = getDb();
   db.prepare(
-    'UPDATE batches SET name=@name, course=@course, start_date=@start_date, end_date=@end_date, timing=@timing, capacity=@capacity, remarks=@remarks WHERE id=@id'
+    'UPDATE batches SET name=@name, course=@course, start_date=@start_date, end_date=@end_date, timing=@timing, capacity=@capacity, remarks=@remarks, advance_fee=@advance_fee WHERE id=@id'
   ).run({
     id: params.id,
     name: data.name,
@@ -19,6 +19,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
     timing: data.timing || null,
     capacity: data.capacity || 30,
     remarks: data.remarks || null,
+    advance_fee: Number(data.advance_fee) ? 1 : 0,
   });
   return NextResponse.json({ ok: true });
 }

@@ -211,6 +211,17 @@ CREATE TABLE IF NOT EXISTS leave_requests (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS student_documents (
+  id SERIAL PRIMARY KEY,
+  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  doc_type TEXT NOT NULL DEFAULT 'Other',
+  file_name TEXT NOT NULL,
+  mime_type TEXT,
+  data_url TEXT NOT NULL,
+  uploaded_by INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS queries (
   id SERIAL PRIMARY KEY,
   student_id INTEGER REFERENCES students(id),

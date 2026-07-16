@@ -1,15 +1,28 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import CrudPage from '@/components/CrudPage';
 import Badge from '@/components/Badge';
 import FeeShareActions from '@/components/FeeShareActions';
+import BulkReminderModal from '@/components/BulkReminderModal';
 
 function formatCurrency(n: number) {
   return `Rs. ${Number(n || 0).toLocaleString('en-IN')}`;
 }
 
 export default function DueFeesPage() {
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [dueRows, setDueRows] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/fees/due')
+      .then((r) => r.json())
+      .then((d) => setDueRows(d.items || []))
+      .catch(() => {});
+  }, [bulkOpen]);
+
   return (
+    <>
     <CrudPage
       title="Due fees"
       subtitle="Students with pending fee balances"
@@ -18,10 +31,16 @@ export default function DueFeesPage() {
       canAdd={false}
       canDelete={false}
       headerActions={
-        <a href="/api/export?type=due-fees" className="btn btn-outline">
-          <span className="material-symbols-outlined text-[18px]">download</span>
-          Export Excel
-        </a>
+        <>
+          <button onClick={() => setBulkOpen(true)} className="btn btn-outline">
+            <span className="material-symbols-outlined text-[18px]">chat</span>
+            Bulk Reminder
+          </button>
+          <a href="/api/export?type=due-fees" className="btn btn-outline">
+            <span className="material-symbols-outlined text-[18px]">download</span>
+            Export Excel
+          </a>
+        </>
       }
       columns={[
         { key: 'student_name', label: 'Student' },
@@ -45,5 +64,7 @@ export default function DueFeesPage() {
       ]}
       extraActions={(row) => <FeeShareActions row={row} />}
     />
+    <BulkReminderModal open={bulkOpen} onClose={() => setBulkOpen(false)} rows={dueRows} />
+    </>
   );
 }

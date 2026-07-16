@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useState } from 'react';
+import NotificationBell from './NotificationBell';
 
 export interface NavItem {
   href: string;
@@ -125,6 +126,7 @@ export default function AppShell({
             <div className="text-[16px] font-semibold text-on-surface">{title}</div>
           </div>
           <div className="flex items-center gap-3">
+            {role === 'management' && <NotificationBell />}
             <div className="text-right hidden sm:block">
               <div className="text-[13px] font-medium text-on-surface">{name}</div>
               <div className="text-[11px] text-on-surface-variant">{roleLabel[role] || role}</div>

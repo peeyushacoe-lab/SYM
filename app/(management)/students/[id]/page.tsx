@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import Badge from '@/components/Badge';
+import StudentDocuments from '@/components/StudentDocuments';
 
 function formatCurrency(n: number) {
   return `Rs. ${Number(n || 0).toLocaleString('en-IN')}`;
@@ -59,10 +60,16 @@ export default function StudentProfilePage(props: { params: Promise<{ id: string
           <span className="material-symbols-outlined text-[18px]">arrow_back</span>
           Back to students
         </Link>
-        <button onClick={() => window.print()} className="btn btn-outline">
-          <span className="material-symbols-outlined text-[18px]">print</span>
-          Print details
-        </button>
+        <div className="flex items-center gap-2">
+          <a href={`/api/students/${id}/id-card`} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
+            <span className="material-symbols-outlined text-[18px]">badge</span>
+            ID Card
+          </a>
+          <button onClick={() => window.print()} className="btn btn-outline">
+            <span className="material-symbols-outlined text-[18px]">print</span>
+            Print details
+          </button>
+        </div>
       </div>
 
       <div className="card flex items-start gap-5">
@@ -96,6 +103,8 @@ export default function StudentProfilePage(props: { params: Promise<{ id: string
           ))}
         </dl>
       </div>
+
+      <StudentDocuments studentId={id} />
 
       <div className="card p-0 overflow-x-auto">
         <div className="px-4 py-3 border-b border-outline-variant/30 flex items-center justify-between">

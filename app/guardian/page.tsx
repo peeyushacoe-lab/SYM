@@ -12,6 +12,7 @@ export default function GuardianHome() {
   const [children, setChildren] = useState<any[] | null>(null);
   const [notices, setNotices] = useState<any[]>([]);
   const [leaves, setLeaves] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
 
   useEffect(() => {
     fetch('/api/guardian/children')
@@ -23,6 +24,9 @@ export default function GuardianHome() {
     fetch('/api/leave')
       .then((r) => r.json())
       .then((d) => setLeaves((d.items || []).filter((l: any) => l.status === 'Pending')));
+    fetch('/api/academic-events')
+      .then((r) => r.json())
+      .then((d) => setEvents((d.items || []).filter((e: any) => (e.end_date || e.start_date) >= new Date().toISOString().slice(0, 10))));
   }, []);
 
   if (!children) return <div className="text-sm text-textSecondary">Loading...</div>;
@@ -79,6 +83,25 @@ export default function GuardianHome() {
           </div>
         )}
       </div>
+
+      {events.length > 0 && (
+        <div>
+          <div className="text-[13px] font-semibold text-text mb-2">Upcoming events</div>
+          <div className="space-y-2">
+            {events.slice(0, 5).map((e) => (
+              <div key={e.id} className="card flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-text">{e.title}</div>
+                  <div className="text-xs text-textSecondary mt-0.5">
+                    {e.start_date}{e.end_date && e.end_date !== e.start_date ? ` – ${e.end_date}` : ''}
+                  </div>
+                </div>
+                <Badge tone="blue">{e.event_type}</Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div>
         <div className="text-[13px] font-semibold text-text mb-2">Notices</div>

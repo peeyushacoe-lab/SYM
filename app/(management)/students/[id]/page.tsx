@@ -65,6 +65,10 @@ export default function StudentProfilePage(props: { params: Promise<{ id: string
             <span className="material-symbols-outlined text-[18px]">badge</span>
             ID Card
           </a>
+          <a href={`/api/students/${id}/report-card`} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
+            <span className="material-symbols-outlined text-[18px]">school</span>
+            Report Card
+          </a>
           <button onClick={() => window.print()} className="btn btn-outline">
             <span className="material-symbols-outlined text-[18px]">print</span>
             Print details

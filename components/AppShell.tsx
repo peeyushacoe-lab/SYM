@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useState } from 'react';
 import NotificationBell from './NotificationBell';
+import { useLanguage } from '@/lib/i18n';
 
 export interface NavItem {
   href: string;
@@ -25,13 +26,14 @@ export default function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { lang, setLang, t } = useLanguage();
   const activeItem = navItems.reduce<NavItem | undefined>((best, item) => {
     const matches = pathname === item.href || pathname.startsWith(item.href + '/');
     if (!matches) return best;
     if (!best || item.href.length > best.href.length) return item;
     return best;
   }, undefined);
-  const title = activeItem?.label || 'Overview';
+  const title = t(activeItem?.label || 'Overview');
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -79,7 +81,7 @@ export default function AppShell({
               {item.icon && (
                 <span className={`material-symbols-outlined ${active ? 'filled' : ''}`}>{item.icon}</span>
               )}
-              {item.label}
+              {t(item.label)}
             </Link>
           );
         })}
@@ -90,7 +92,7 @@ export default function AppShell({
           className="w-full text-left flex items-center gap-2.5 px-4 py-2 rounded-lg text-[13px] font-medium text-on-surface-variant/80 hover:text-on-surface hover:bg-white/40 transition-colors"
         >
           <span className="material-symbols-outlined">logout</span>
-          Sign Out
+          {t('Sign Out')}
         </button>
       </div>
     </>
@@ -126,10 +128,17 @@ export default function AppShell({
             <div className="text-[16px] font-semibold text-on-surface">{title}</div>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
+              className="text-[11px] font-medium text-on-surface-variant hover:text-tertiary border border-outline-variant/50 rounded-lg px-2 py-1 transition-colors"
+              title="Switch language"
+            >
+              {lang === 'en' ? 'EN' : 'हिं'}
+            </button>
             {role === 'management' && <NotificationBell />}
             <div className="text-right hidden sm:block">
               <div className="text-[13px] font-medium text-on-surface">{name}</div>
-              <div className="text-[11px] text-on-surface-variant">{roleLabel[role] || role}</div>
+              <div className="text-[11px] text-on-surface-variant">{t(roleLabel[role] || role)}</div>
             </div>
             <div className="w-9 h-9 rounded-full bg-tertiary text-white flex items-center justify-center text-xs font-semibold shadow-soft border border-white">
               {initials || '?'}

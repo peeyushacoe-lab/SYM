@@ -9,12 +9,14 @@ import FeesSection from '@/components/portal/FeesSection';
 import ResultsSection from '@/components/portal/ResultsSection';
 import TimetableGrid from '@/components/portal/TimetableGrid';
 import RequestsSection from '@/components/portal/RequestsSection';
+import HomeworkPanel from '@/components/portal/HomeworkPanel';
 
 const TABS = [
   { key: 'profile', label: 'Profile', icon: 'person' },
   { key: 'attendance', label: 'Attendance', icon: 'event_available' },
   { key: 'fees', label: 'Fees', icon: 'account_balance_wallet' },
   { key: 'results', label: 'Results', icon: 'grade' },
+  { key: 'homework', label: 'Homework', icon: 'assignment' },
   { key: 'timetable', label: 'Timetable', icon: 'calendar_month' },
   { key: 'requests', label: 'Leave & queries', icon: 'forum' },
 ];
@@ -54,6 +56,7 @@ export default function ChildDetailPage() {
       {tab === 'attendance' && <AttendanceCalendar studentKey={id} />}
       {tab === 'fees' && <FeesSection studentKey={id} />}
       {tab === 'results' && <ResultsSection studentKey={id} />}
+      {tab === 'homework' && <HomeworkPanel batchFilter={student.batch_id} readOnly />}
       {tab === 'timetable' && <ChildTimetable id={id} />}
       {tab === 'requests' && <RequestsSection studentId={id} />}
     </div>

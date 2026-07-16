@@ -211,6 +211,63 @@ CREATE TABLE IF NOT EXISTS leave_requests (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS homework (
+  id SERIAL PRIMARY KEY,
+  batch_id INTEGER NOT NULL REFERENCES batches(id),
+  subject TEXT,
+  title TEXT NOT NULL,
+  description TEXT,
+  due_date TEXT,
+  attachment_name TEXT,
+  attachment_data_url TEXT,
+  created_by INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS lesson_plans (
+  id SERIAL PRIMARY KEY,
+  batch_id INTEGER NOT NULL REFERENCES batches(id),
+  subject TEXT NOT NULL,
+  topic TEXT NOT NULL,
+  description TEXT,
+  planned_date TEXT,
+  status TEXT NOT NULL DEFAULT 'Planned',
+  created_by INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS academic_events (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  event_type TEXT NOT NULL DEFAULT 'Event',
+  start_date TEXT NOT NULL,
+  end_date TEXT,
+  audience TEXT NOT NULL DEFAULT 'All',
+  created_by INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS grade_bands (
+  id SERIAL PRIMARY KEY,
+  grade TEXT NOT NULL,
+  min_percent DOUBLE PRECISION NOT NULL,
+  max_percent DOUBLE PRECISION NOT NULL,
+  remarks TEXT
+);
+
+INSERT INTO grade_bands (grade, min_percent, max_percent, remarks)
+SELECT * FROM (VALUES
+  ('A+', 90, 100, 'Outstanding'),
+  ('A', 80, 89.99, 'Excellent'),
+  ('B+', 70, 79.99, 'Very Good'),
+  ('B', 60, 69.99, 'Good'),
+  ('C', 50, 59.99, 'Average'),
+  ('D', 40, 49.99, 'Below Average'),
+  ('F', 0, 39.99, 'Needs Improvement')
+) AS v(grade, min_percent, max_percent, remarks)
+WHERE NOT EXISTS (SELECT 1 FROM grade_bands);
+
 CREATE TABLE IF NOT EXISTS student_documents (
   id SERIAL PRIMARY KEY,
   student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -220,6 +277,163 @@ CREATE TABLE IF NOT EXISTS student_documents (
   data_url TEXT NOT NULL,
   uploaded_by INTEGER,
   created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS library_books (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  author TEXT,
+  isbn TEXT,
+  category TEXT,
+  total_copies INTEGER NOT NULL DEFAULT 1,
+  available_copies INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS library_issues (
+  id SERIAL PRIMARY KEY,
+  book_id INTEGER NOT NULL REFERENCES library_books(id) ON DELETE CASCADE,
+  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  issued_date TEXT NOT NULL,
+  due_date TEXT NOT NULL,
+  returned_date TEXT,
+  fine_amount DOUBLE PRECISION DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'Issued',
+  issued_by INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS inventory_items (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  category TEXT,
+  quantity INTEGER NOT NULL DEFAULT 0,
+  unit TEXT DEFAULT 'pcs',
+  unit_cost DOUBLE PRECISION DEFAULT 0,
+  reorder_level INTEGER DEFAULT 0,
+  location TEXT,
+  remarks TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS inventory_transactions (
+  id SERIAL PRIMARY KEY,
+  item_id INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  reason TEXT,
+  txn_date TEXT NOT NULL,
+  created_by INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS hostel_rooms (
+  id SERIAL PRIMARY KEY,
+  room_number TEXT NOT NULL,
+  block TEXT,
+  room_type TEXT DEFAULT 'Shared',
+  capacity INTEGER NOT NULL DEFAULT 1,
+  occupied_count INTEGER NOT NULL DEFAULT 0,
+  monthly_fee DOUBLE PRECISION DEFAULT 0,
+  remarks TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS hostel_allocations (
+  id SERIAL PRIMARY KEY,
+  room_id INTEGER NOT NULL REFERENCES hostel_rooms(id) ON DELETE CASCADE,
+  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  allocated_date TEXT NOT NULL,
+  vacated_date TEXT,
+  status TEXT NOT NULL DEFAULT 'Active',
+  remarks TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS transport_vehicles (
+  id SERIAL PRIMARY KEY,
+  vehicle_number TEXT NOT NULL,
+  driver_name TEXT,
+  driver_mobile TEXT,
+  capacity INTEGER NOT NULL DEFAULT 1,
+  route_name TEXT,
+  remarks TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS transport_assignments (
+  id SERIAL PRIMARY KEY,
+  vehicle_id INTEGER NOT NULL REFERENCES transport_vehicles(id) ON DELETE CASCADE,
+  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  pickup_point TEXT,
+  monthly_fee DOUBLE PRECISION DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'Active',
+  assigned_date TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS visitor_logs (
+  id SERIAL PRIMARY KEY,
+  visitor_name TEXT NOT NULL,
+  mobile TEXT,
+  purpose TEXT,
+  to_meet TEXT,
+  in_time TEXT NOT NULL,
+  out_time TEXT,
+  remarks TEXT,
+  created_by INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS payroll_runs (
+  id SERIAL PRIMARY KEY,
+  staff_id INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+  month TEXT NOT NULL,
+  basic_salary DOUBLE PRECISION NOT NULL DEFAULT 0,
+  allowances DOUBLE PRECISION NOT NULL DEFAULT 0,
+  deductions DOUBLE PRECISION NOT NULL DEFAULT 0,
+  net_salary DOUBLE PRECISION NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'Pending',
+  payment_date TEXT,
+  payment_mode TEXT DEFAULT 'Bank Transfer',
+  remarks TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(staff_id, month)
+);
+
+CREATE TABLE IF NOT EXISTS alumni (
+  id SERIAL PRIMARY KEY,
+  student_id INTEGER REFERENCES students(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  course TEXT,
+  graduation_year TEXT,
+  mobile TEXT,
+  email TEXT,
+  current_occupation TEXT,
+  current_organization TEXT,
+  address TEXT,
+  remarks TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS branches (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  address TEXT,
+  contact_mobile TEXT,
+  contact_email TEXT,
+  is_main INTEGER DEFAULT 0,
+  remarks TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+  id SERIAL PRIMARY KEY,
+  role TEXT NOT NULL,
+  module_key TEXT NOT NULL,
+  can_view INTEGER NOT NULL DEFAULT 1,
+  can_edit INTEGER NOT NULL DEFAULT 1,
+  UNIQUE(role, module_key)
 );
 
 CREATE TABLE IF NOT EXISTS queries (

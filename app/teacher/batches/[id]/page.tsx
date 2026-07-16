@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import Tabs from '@/components/Tabs';
 import ExamsPanel from '@/components/portal/ExamsPanel';
 import TimetableGrid from '@/components/portal/TimetableGrid';
+import HomeworkPanel from '@/components/portal/HomeworkPanel';
+import LessonPlanPanel from '@/components/portal/LessonPlanPanel';
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -14,6 +16,8 @@ const TABS = [
   { key: 'attendance', label: 'Attendance', icon: 'event_available' },
   { key: 'students', label: 'Students', icon: 'school' },
   { key: 'exams', label: 'Exams & marks', icon: 'grade' },
+  { key: 'homework', label: 'Homework', icon: 'assignment' },
+  { key: 'lessons', label: 'Lesson plans', icon: 'menu_book' },
   { key: 'timetable', label: 'Timetable', icon: 'calendar_month' },
 ];
 
@@ -176,6 +180,10 @@ export default function TeacherBatchPage() {
       )}
 
       {tab === 'exams' && <ExamsPanel detailBase="/teacher/exams" batchFilter={id} />}
+
+      {tab === 'homework' && <HomeworkPanel batchFilter={id} />}
+
+      {tab === 'lessons' && <LessonPlanPanel batchFilter={id} />}
 
       {tab === 'timetable' && <BatchTimetable batchId={id} />}
     </div>

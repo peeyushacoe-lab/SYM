@@ -14,15 +14,15 @@ export async function POST(req: NextRequest) {
   }
 
   const db = getDb();
-  const fee = db.prepare('SELECT * FROM fees WHERE id = ?').get(fee_id) as any;
+  const fee = (await db.prepare('SELECT * FROM fees WHERE id = ?').get(fee_id)) as any;
   if (!fee) return NextResponse.json({ error: 'Fee record not found.' }, { status: 404 });
 
   if (auth.session.role === 'student') {
-    const student = getStudentByUserId(auth.session.id);
+    const student = await getStudentByUserId(auth.session.id);
     if (!student || student.id !== fee.student_id) {
       return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
     }
-  } else if (!guardianOwnsStudent(auth.session.id, fee.student_id)) {
+  } else if (!(await guardianOwnsStudent(auth.session.id, fee.student_id))) {
     return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
   }
 
@@ -31,17 +31,17 @@ export async function POST(req: NextRequest) {
   }
 
   const transaction_ref = 'TEST-' + Date.now().toString(36).toUpperCase();
-  const tx = db.transaction(() => {
-    db.prepare('UPDATE fees SET amount_paid = amount_paid + ?, remaining_due = remaining_due - ? WHERE id = ?').run(
-      amount,
-      amount,
-      fee_id
-    );
-    db.prepare(
-      'INSERT INTO payments (fee_id, student_id, amount, method, status, transaction_ref, paid_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).run(fee_id, fee.student_id, amount, 'Online (Test)', 'success', transaction_ref, auth.session.id);
+  const tx = db.transaction(async () => {
+    await db
+      .prepare('UPDATE fees SET amount_paid = amount_paid + ?, remaining_due = remaining_due - ? WHERE id = ?')
+      .run(amount, amount, fee_id);
+    await db
+      .prepare(
+        'INSERT INTO payments (fee_id, student_id, amount, method, status, transaction_ref, paid_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      )
+      .run(fee_id, fee.student_id, amount, 'Online (Test)', 'success', transaction_ref, auth.session.id);
   });
-  tx();
+  await tx();
 
   return NextResponse.json({ ok: true, transaction_ref });
 }

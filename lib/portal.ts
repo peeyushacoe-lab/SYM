@@ -2,7 +2,7 @@ import getDb from './db';
 
 // Shared read helpers for the student / guardian / teacher portals.
 
-export function getStudentByUserId(userId: number) {
+export async function getStudentByUserId(userId: number) {
   const db = getDb();
   return db
     .prepare(
@@ -12,14 +12,14 @@ export function getStudentByUserId(userId: number) {
     .get(userId) as any;
 }
 
-export function guardianOwnsStudent(guardianUserId: number, studentId: number | string): boolean {
+export async function guardianOwnsStudent(guardianUserId: number, studentId: number | string): Promise<boolean> {
   const db = getDb();
-  return !!db
+  return !!(await db
     .prepare('SELECT 1 FROM student_guardians WHERE guardian_user_id = ? AND student_id = ?')
-    .get(guardianUserId, studentId);
+    .get(guardianUserId, studentId));
 }
 
-export function getStudentProfile(studentId: number | string) {
+export async function getStudentProfile(studentId: number | string) {
   const db = getDb();
   return db
     .prepare(
@@ -30,17 +30,15 @@ export function getStudentProfile(studentId: number | string) {
     .get(studentId) as any;
 }
 
-export function getAttendanceSummary(studentId: number | string) {
+export async function getAttendanceSummary(studentId: number | string) {
   const db = getDb();
-  const rows = db
-    .prepare(
-      `SELECT status, COUNT(*) as count FROM attendance WHERE student_id = ? GROUP BY status`
-    )
-    .all(studentId) as { status: string; count: number }[];
-  const total = rows.reduce((s, r) => s + r.count, 0);
-  const present = rows.find((r) => r.status === 'Present')?.count || 0;
-  const absent = rows.find((r) => r.status === 'Absent')?.count || 0;
-  const leave = rows.find((r) => r.status === 'Leave')?.count || 0;
+  const rows = (await db
+    .prepare(`SELECT status, COUNT(*) as count FROM attendance WHERE student_id = ? GROUP BY status`)
+    .all(studentId)) as { status: string; count: number }[];
+  const total = rows.reduce((s, r) => s + Number(r.count), 0);
+  const present = Number(rows.find((r) => r.status === 'Present')?.count || 0);
+  const absent = Number(rows.find((r) => r.status === 'Absent')?.count || 0);
+  const leave = Number(rows.find((r) => r.status === 'Leave')?.count || 0);
   return {
     total,
     present,
@@ -51,16 +49,14 @@ export function getAttendanceSummary(studentId: number | string) {
 }
 
 // month: 'YYYY-MM'
-export function getAttendanceMonth(studentId: number | string, month: string) {
+export async function getAttendanceMonth(studentId: number | string, month: string) {
   const db = getDb();
   return db
-    .prepare(
-      `SELECT date, status FROM attendance WHERE student_id = ? AND date LIKE ? ORDER BY date`
-    )
-    .all(studentId, `${month}-%`) as { date: string; status: string }[];
+    .prepare(`SELECT date, status FROM attendance WHERE student_id = ? AND date LIKE ? ORDER BY date`)
+    .all(studentId, `${month}-%`) as Promise<{ date: string; status: string }[]>;
 }
 
-export function getResults(studentId: number | string) {
+export async function getResults(studentId: number | string) {
   const db = getDb();
   return db
     .prepare(
@@ -71,10 +67,10 @@ export function getResults(studentId: number | string) {
        LEFT JOIN exam_marks m ON m.exam_id = e.id AND m.student_id = s.id
        ORDER BY e.exam_date DESC, e.id DESC`
     )
-    .all(studentId) as any[];
+    .all(studentId) as Promise<any[]>;
 }
 
-export function getTimetable(batchId: number | null | undefined) {
+export async function getTimetable(batchId: number | null | undefined) {
   if (!batchId) return [];
   const db = getDb();
   return db
@@ -83,21 +79,21 @@ export function getTimetable(batchId: number | null | undefined) {
        LEFT JOIN users u ON t.teacher_user_id = u.id
        WHERE t.batch_id = ? ORDER BY t.day, t.start_time`
     )
-    .all(batchId) as any[];
+    .all(batchId) as Promise<any[]>;
 }
 
-export function getFees(studentId: number | string) {
+export async function getFees(studentId: number | string) {
   const db = getDb();
-  const fees = db
+  const fees = (await db
     .prepare('SELECT * FROM fees WHERE student_id = ? ORDER BY payment_date DESC, id DESC')
-    .all(studentId) as any[];
-  const payments = db
+    .all(studentId)) as any[];
+  const payments = (await db
     .prepare('SELECT * FROM payments WHERE student_id = ? ORDER BY created_at DESC')
-    .all(studentId) as any[];
+    .all(studentId)) as any[];
   return { fees, payments };
 }
 
-export function getLeaveRequests(studentId: number | string) {
+export async function getLeaveRequests(studentId: number | string) {
   const db = getDb();
   return db
     .prepare(
@@ -107,10 +103,10 @@ export function getLeaveRequests(studentId: number | string) {
        LEFT JOIN users r ON l.responded_by = r.id
        WHERE l.student_id = ? ORDER BY l.created_at DESC`
     )
-    .all(studentId) as any[];
+    .all(studentId) as Promise<any[]>;
 }
 
-export function getQueries(raisedBy: number, studentId?: number | string) {
+export async function getQueries(raisedBy: number, studentId?: number | string) {
   const db = getDb();
   if (studentId) {
     return db
@@ -119,7 +115,7 @@ export function getQueries(raisedBy: number, studentId?: number | string) {
          LEFT JOIN users r ON q.responded_by = r.id
          WHERE q.raised_by = ? AND q.student_id = ? ORDER BY q.created_at DESC`
       )
-      .all(raisedBy, studentId) as any[];
+      .all(raisedBy, studentId) as Promise<any[]>;
   }
   return db
     .prepare(
@@ -127,14 +123,14 @@ export function getQueries(raisedBy: number, studentId?: number | string) {
        LEFT JOIN users r ON q.responded_by = r.id
        WHERE q.raised_by = ? ORDER BY q.created_at DESC`
     )
-    .all(raisedBy) as any[];
+    .all(raisedBy) as Promise<any[]>;
 }
 
-export function teacherOwnsBatch(teacherUserId: number, batchId: number | string): boolean {
+export async function teacherOwnsBatch(teacherUserId: number, batchId: number | string): Promise<boolean> {
   const db = getDb();
-  return !!db
+  return !!(await db
     .prepare('SELECT 1 FROM teacher_batches WHERE teacher_user_id = ? AND batch_id = ?')
-    .get(teacherUserId, batchId);
+    .get(teacherUserId, batchId));
 }
 
 export function gradeFor(pct: number): string {

@@ -20,11 +20,11 @@ export async function GET(req: NextRequest) {
   const studentId = req.nextUrl.searchParams.get('student_id');
 
   if (role === 'management') {
-    const items = db.prepare(`${LIST_SQL} ORDER BY l.created_at DESC`).all();
+    const items = await db.prepare(`${LIST_SQL} ORDER BY l.created_at DESC`).all();
     return NextResponse.json({ items });
   }
   if (role === 'teacher') {
-    const items = db
+    const items = await db
       .prepare(
         `${LIST_SQL} WHERE s.batch_id IN (SELECT batch_id FROM teacher_batches WHERE teacher_user_id = ?)
          ORDER BY l.created_at DESC`
@@ -33,20 +33,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ items });
   }
   if (role === 'student') {
-    const student = getStudentByUserId(id);
+    const student = await getStudentByUserId(id);
     if (!student) return NextResponse.json({ items: [] });
-    const items = db.prepare(`${LIST_SQL} WHERE l.student_id = ? ORDER BY l.created_at DESC`).all(student.id);
+    const items = await db.prepare(`${LIST_SQL} WHERE l.student_id = ? ORDER BY l.created_at DESC`).all(student.id);
     return NextResponse.json({ items });
   }
   // guardian
   if (studentId) {
-    if (!guardianOwnsStudent(id, studentId)) {
+    if (!(await guardianOwnsStudent(id, studentId))) {
       return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
     }
-    const items = db.prepare(`${LIST_SQL} WHERE l.student_id = ? ORDER BY l.created_at DESC`).all(studentId);
+    const items = await db.prepare(`${LIST_SQL} WHERE l.student_id = ? ORDER BY l.created_at DESC`).all(studentId);
     return NextResponse.json({ items });
   }
-  const items = db
+  const items = await db
     .prepare(
       `${LIST_SQL} WHERE l.student_id IN (SELECT student_id FROM student_guardians WHERE guardian_user_id = ?)
        ORDER BY l.created_at DESC`
@@ -65,18 +65,18 @@ export async function POST(req: NextRequest) {
 
   let studentId: number;
   if (auth.session.role === 'student') {
-    const student = getStudentByUserId(auth.session.id);
+    const student = await getStudentByUserId(auth.session.id);
     if (!student) return NextResponse.json({ error: 'No student profile linked.' }, { status: 404 });
     studentId = student.id;
   } else {
-    if (!data.student_id || !guardianOwnsStudent(auth.session.id, data.student_id)) {
+    if (!data.student_id || !(await guardianOwnsStudent(auth.session.id, data.student_id))) {
       return NextResponse.json({ error: 'Not authorized for this student.' }, { status: 403 });
     }
     studentId = data.student_id;
   }
 
   const db = getDb();
-  const result = db
+  const result = await db
     .prepare(
       'INSERT INTO leave_requests (student_id, requested_by, from_date, to_date, reason) VALUES (?, ?, ?, ?, ?)'
     )

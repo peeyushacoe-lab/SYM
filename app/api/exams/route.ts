@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   if (where.length) sql += ' WHERE ' + where.join(' AND ');
   sql += ' ORDER BY e.exam_date DESC, e.id DESC';
 
-  const items = db.prepare(sql).all(...params);
+  const items = await db.prepare(sql).all(...params);
   return NextResponse.json({ items });
 }
 
@@ -38,11 +38,11 @@ export async function POST(req: NextRequest) {
   if (!data.name || !data.batch_id) {
     return NextResponse.json({ error: 'Exam name and batch are required.' }, { status: 400 });
   }
-  if (auth.session.role === 'teacher' && !teacherOwnsBatch(auth.session.id, data.batch_id)) {
+  if (auth.session.role === 'teacher' && !(await teacherOwnsBatch(auth.session.id, data.batch_id))) {
     return NextResponse.json({ error: 'Not authorized for this batch.' }, { status: 403 });
   }
   const db = getDb();
-  const result = db
+  const result = await db
     .prepare(
       'INSERT INTO exams (name, batch_id, subject, exam_date, max_marks, created_by) VALUES (?, ?, ?, ?, ?, ?)'
     )

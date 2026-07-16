@@ -7,6 +7,6 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  db.prepare("UPDATE enquiries SET converted=1, status='Joined' WHERE id=?").run(params.id);
+  await db.prepare("UPDATE enquiries SET converted=1, status='Joined' WHERE id=?").run(params.id);
   return NextResponse.json({ ok: true });
 }

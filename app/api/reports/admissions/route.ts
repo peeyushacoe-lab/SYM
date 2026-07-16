@@ -12,6 +12,8 @@ export async function GET(req: NextRequest) {
        WHERE s.name LIKE ? OR s.course LIKE ? OR s.batch_id IN (SELECT id FROM batches WHERE name LIKE ?)
        ORDER BY s.admission_date DESC`
     : `SELECT s.*, b.name as batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id ORDER BY s.admission_date DESC`;
-  const items = search ? db.prepare(query).all(`%${search}%`, `%${search}%`, `%${search}%`) : db.prepare(query).all();
+  const items = search
+    ? await db.prepare(query).all(`%${search}%`, `%${search}%`, `%${search}%`)
+    : await db.prepare(query).all();
   return NextResponse.json({ items });
 }

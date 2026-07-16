@@ -15,10 +15,10 @@ export async function POST(req: NextRequest) {
   }
 
   const db = getDb();
-  const fee = db.prepare('SELECT * FROM fees WHERE id = ?').get(fee_id) as any;
+  const fee = (await db.prepare('SELECT * FROM fees WHERE id = ?').get(fee_id)) as any;
   if (!fee) return NextResponse.json({ error: 'Fee record not found.' }, { status: 404 });
 
-  const owns = db
+  const owns = await db
     .prepare('SELECT 1 FROM student_guardians WHERE guardian_user_id = ? AND student_id = ?')
     .get(auth.session.id, fee.student_id);
   if (!owns) return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
@@ -29,16 +29,18 @@ export async function POST(req: NextRequest) {
   }
 
   const txRef = `TXN-TEST-${Date.now()}`;
-  const tx = db.transaction(() => {
-    db.prepare(
-      'INSERT INTO payments (fee_id, student_id, amount, method, status, transaction_ref, paid_by) VALUES (?,?,?,?,?,?,?)'
-    ).run(fee_id, fee.student_id, payAmount, 'Online', 'success', txRef, auth.session.id);
+  const tx = db.transaction(async () => {
+    await db
+      .prepare(
+        'INSERT INTO payments (fee_id, student_id, amount, method, status, transaction_ref, paid_by) VALUES (?,?,?,?,?,?,?)'
+      )
+      .run(fee_id, fee.student_id, payAmount, 'Online', 'success', txRef, auth.session.id);
 
     const newPaid = fee.amount_paid + payAmount;
     const newDue = Math.max(fee.course_fee - newPaid, 0);
-    db.prepare('UPDATE fees SET amount_paid = ?, remaining_due = ? WHERE id = ?').run(newPaid, newDue, fee_id);
+    await db.prepare('UPDATE fees SET amount_paid = ?, remaining_due = ? WHERE id = ?').run(newPaid, newDue, fee_id);
   });
-  tx();
+  await tx();
 
   return NextResponse.json({ ok: true, transaction_ref: txRef, amount: payAmount });
 }

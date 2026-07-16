@@ -1,7 +1,8 @@
 # SYM Web - Shiksha Yogi Management (Web ERP)
 
-Full-stack web ERP for Shiksha Yogi, built with Next.js 14 (App Router) and a local SQLite
-database (via `better-sqlite3`). Four roles, each with their own screens:
+Full-stack web ERP for Shiksha Yogi, built with Next.js 16 (App Router) and Postgres
+(works with Neon, Supabase, or any standard Postgres connection string). Four roles, each
+with their own screens:
 
 - **Management** - full ERP: students, batches, staff, fee collection, due fees, expenses,
   enquiries, notices, reports, search, settings (create teacher/guardian/student accounts).
@@ -12,20 +13,31 @@ database (via `better-sqlite3`). Four roles, each with their own screens:
 
 ## Getting started
 
-```bash
-npm install
-npm run dev
-```
+1. Provision a Postgres database (Neon, Supabase, or any Postgres 14+ instance) and copy its
+   connection string.
+2. Create `.env.local` with:
+   ```
+   DATABASE_URL=postgresql://user:password@host:port/dbname
+   JWT_SECRET=<a long random string>
+   ```
+3. Apply the schema and seed demo data:
+   ```bash
+   npm install
+   node scripts/pg-migrate.js
+   node scripts/seed-demo-pg.js
+   npm run dev
+   ```
 
 Open http://localhost:3000 - you'll be redirected to `/login`.
 
-A database file `sym.db` is created automatically on first run, along with a default
-management login:
+Demo logins (from `scripts/seed-demo-pg.js`):
 
-- **Username:** `admin`
-- **Password:** `admin123`
+- **Management:** `admin` / `admin123`
+- **Teacher:** `teacher1` / `teacher123`
+- **Guardian:** `guardian1` / `guardian123`
+- **Student:** `student1` / `student123`
 
-Change this password immediately from Settings > My account once you're in.
+Change the admin password immediately from Settings > My account once you're in.
 
 ## Creating teacher / guardian / student accounts
 
@@ -44,17 +56,22 @@ shape is already set up to support this.
 
 ## Notes on this build
 
-- Uses `better-sqlite3` directly (no Prisma) so there's no external binary download step
-  beyond the normal `npm install`.
+- Uses `pg` directly against Postgres (no ORM). `lib/pg.ts` provides a small compatibility
+  layer (`db.prepare(sql).all/get/run(...)`) so query code reads close to the original
+  synchronous SQLite version, but every query is async now - always `await` it.
 - Auth uses signed JWT cookies (`jose`, edge-compatible) so route protection works in
-  Next.js middleware.
+  Next.js middleware (`proxy.ts`).
 - This mirrors the data model of the existing Expo/React Native app (`SYM/` folder) so the
   same institute data concepts apply, extended with roles, attendance, notices and
   guardian/student linking.
+- `scripts/pg-schema.sql` is the source of truth for the schema; `scripts/pg-migrate.js`
+  applies it (idempotent - safe to re-run). `scripts/seed-demo-pg.js` wipes and reseeds a
+  full demo dataset.
 
 ## Deploying
 
-This is a normal Next.js app - it can be deployed to any Node host (Vercel with a persistent
-disk, Railway, Render, a VPS, etc.). Since it uses a local SQLite file, make sure the
-deployment target has persistent storage for `sym.db`, or swap `lib/db.ts` for a hosted
-database if you need multi-instance scaling.
+Deploys to Vercel (or any Node host) as a normal Next.js app. Set `DATABASE_URL` and
+`JWT_SECRET` as environment variables on the target - for Vercel specifically, use your
+Postgres provider's connection pooler (e.g. Supabase's "Transaction pooler" on port 6543,
+or Neon's pooled connection string) rather than a direct connection, since serverless
+functions open many short-lived connections.

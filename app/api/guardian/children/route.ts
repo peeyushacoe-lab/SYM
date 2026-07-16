@@ -6,7 +6,7 @@ export async function GET() {
   const auth = await requireRole('guardian');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  const children = db
+  const children = await db
     .prepare(
       `SELECT s.*, b.name as batch_name,
         COALESCE((SELECT SUM(remaining_due) FROM fees WHERE student_id = s.id), 0) as due_amount

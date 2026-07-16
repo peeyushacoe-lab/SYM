@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     params.push(`${month}%`);
   }
   query += ' ORDER BY expense_date DESC';
-  const items = db.prepare(query).all(...params);
+  const items = await db.prepare(query).all(...params);
   return NextResponse.json({ items });
 }
 
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Date and amount are required.' }, { status: 400 });
   }
   const db = getDb();
-  const result = db
+  const result = await db
     .prepare(
       'INSERT INTO expenses (expense_date, category, description, amount, payment_mode, remarks) VALUES (@expense_date, @category, @description, @amount, @payment_mode, @remarks)'
     )

@@ -8,12 +8,12 @@ export async function GET(req: NextRequest) {
   if ('error' in auth) return auth.error;
   const batchId = req.nextUrl.searchParams.get('batch_id');
   if (batchId) {
-    return NextResponse.json({ items: getTimetable(Number(batchId)) });
+    return NextResponse.json({ items: await getTimetable(Number(batchId)) });
   }
   const db = getDb();
   if (auth.session.role === 'teacher') {
     // All slots for the teacher's batches
-    const items = db
+    const items = await db
       .prepare(
         `SELECT t.*, u.name as teacher_name, b.name as batch_name FROM timetable_slots t
          LEFT JOIN users u ON t.teacher_user_id = u.id
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       .all(auth.session.id);
     return NextResponse.json({ items });
   }
-  const items = db
+  const items = await db
     .prepare(
       `SELECT t.*, u.name as teacher_name, b.name as batch_name FROM timetable_slots t
        LEFT JOIN users u ON t.teacher_user_id = u.id
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Batch, day, start time and subject are required.' }, { status: 400 });
   }
   const db = getDb();
-  const result = db
+  const result = await db
     .prepare(
       'INSERT INTO timetable_slots (batch_id, day, start_time, end_time, subject, teacher_user_id) VALUES (?, ?, ?, ?, ?, ?)'
     )

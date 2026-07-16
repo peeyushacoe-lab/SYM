@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     params.push(course);
   }
   query += ' ORDER BY s.name';
-  const items = db.prepare(query).all(...params);
+  const items = await db.prepare(query).all(...params);
 
   return NextResponse.json({ items });
 }
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   }
 
   const db = getDb();
-  const result = db
+  const result = await db
     .prepare(
       `INSERT INTO students (name, father_name, mother_name, mobile, alt_mobile, address, dob, gender,
         qualification, course, batch_id, admission_date, roll_number, registration_number,

@@ -36,14 +36,14 @@ export async function GET(req: NextRequest) {
 
   switch (type) {
     case 'students': {
-      const rows = (db
+      const rows = ((await db
         .prepare(
           `SELECT s.name, s.father_name, s.mother_name, s.mobile, s.alt_mobile, s.address, s.dob, s.gender,
              s.qualification, s.course, b.name as batch, s.admission_date, s.roll_number, s.registration_number,
              s.aadhaar, s.email, s.remarks
            FROM students s LEFT JOIN batches b ON s.batch_id = b.id ORDER BY s.name`
         )
-        .all() as Record<string, any>[]).map((r) => ({
+        .all()) as Record<string, any>[]).map((r) => ({
         Name: r.name, "Father's Name": r.father_name, "Mother's Name": r.mother_name, Mobile: r.mobile,
         'Alt Mobile': r.alt_mobile, Address: r.address, 'Date of Birth': r.dob, Gender: r.gender,
         Qualification: r.qualification, Course: r.course, Batch: r.batch, 'Admission Date': r.admission_date,
@@ -54,19 +54,19 @@ export async function GET(req: NextRequest) {
     }
     case 'batch-students': {
       if (!batchId) return NextResponse.json({ error: 'batch_id required' }, { status: 400 });
-      const batch = db.prepare('SELECT name FROM batches WHERE id = ?').get(batchId) as any;
-      const rows = (db
+      const batch = (await db.prepare('SELECT name FROM batches WHERE id = ?').get(batchId)) as any;
+      const rows = ((await db
         .prepare(
           `SELECT s.name, s.mobile, s.roll_number, s.course, s.admission_date
            FROM students s WHERE s.batch_id = ? ORDER BY s.name`
         )
-        .all(batchId) as Record<string, any>[]).map((r) => ({
+        .all(batchId)) as Record<string, any>[]).map((r) => ({
         Name: r.name, Mobile: r.mobile, 'Roll No': r.roll_number, Course: r.course, 'Admission Date': r.admission_date,
       }));
       return sheetResponse(rows, batch?.name || 'Batch', `batch-students-${today}`);
     }
     case 'enquiries': {
-      const rows = (db.prepare('SELECT * FROM enquiries ORDER BY enquiry_date DESC').all() as Record<string, any>[]).map((r) => ({
+      const rows = ((await db.prepare('SELECT * FROM enquiries ORDER BY enquiry_date DESC').all()) as Record<string, any>[]).map((r) => ({
         Name: r.student_name, Mobile: r.mobile, 'Course Interested': r.course_interested,
         Qualification: r.qualification, Address: r.address, 'Enquiry Date': r.enquiry_date,
         'Follow-up Date': r.follow_up_date, Status: r.status, Remarks: r.remarks,
@@ -78,20 +78,20 @@ export async function GET(req: NextRequest) {
       const p: any[] = [];
       if (month) { q += ' AND expense_date LIKE ?'; p.push(`${month}%`); }
       q += ' ORDER BY expense_date DESC';
-      const rows = (db.prepare(q).all(...p) as Record<string, any>[]).map((r) => ({
+      const rows = ((await db.prepare(q).all(...p)) as Record<string, any>[]).map((r) => ({
         Date: r.expense_date, Category: r.category, Description: r.description,
         Amount: r.amount, 'Payment Mode': r.payment_mode, Remarks: r.remarks,
       }));
       return sheetResponse(rows, 'Expenses', `expense-list-${month || today}`);
     }
     case 'due-fees': {
-      const rows = (db
+      const rows = ((await db
         .prepare(
           `SELECT s.name, s.mobile, b.name as batch, f.course_fee, f.amount_paid, f.remaining_due, f.due_date
            FROM fees f LEFT JOIN students s ON f.student_id = s.id LEFT JOIN batches b ON s.batch_id = b.id
            WHERE f.remaining_due > 0 ORDER BY f.remaining_due DESC`
         )
-        .all() as Record<string, any>[]).map((r) => ({
+        .all()) as Record<string, any>[]).map((r) => ({
         Student: r.name, Mobile: r.mobile, Batch: r.batch, 'Total Fee': r.course_fee,
         'Paid Amount': r.amount_paid, 'Remaining Due': r.remaining_due, 'Due Date': r.due_date,
       }));
@@ -103,7 +103,7 @@ export async function GET(req: NextRequest) {
       const p: any[] = [];
       if (month) { q += ' AND f.payment_date LIKE ?'; p.push(`${month}%`); }
       q += ' ORDER BY f.payment_date DESC';
-      const rows = (db.prepare(q).all(...p) as Record<string, any>[]).map((r) => ({
+      const rows = ((await db.prepare(q).all(...p)) as Record<string, any>[]).map((r) => ({
         Student: r.student_name, Mobile: r.mobile, Batch: r.batch_name, 'Course Fee': r.course_fee,
         'Amount Paid': r.amount_paid, 'Remaining Due': r.remaining_due, 'Payment Date': r.payment_date,
         'Payment Mode': r.payment_mode, 'Receipt No': r.receipt_number, 'Due Date': r.due_date, Remarks: r.remarks,
@@ -111,25 +111,25 @@ export async function GET(req: NextRequest) {
       return sheetResponse(rows, 'Fee Collection', `fee-collection-${month || today}`);
     }
     case 'staff': {
-      const rows = (db.prepare('SELECT * FROM staff ORDER BY name').all() as Record<string, any>[]).map((r) => ({
+      const rows = ((await db.prepare('SELECT * FROM staff ORDER BY name').all()) as Record<string, any>[]).map((r) => ({
         Name: r.name, Mobile: r.mobile, Designation: r.designation, Salary: r.salary,
         'Joining Date': r.joining_date, Address: r.address, Remarks: r.remarks,
       }));
       return sheetResponse(rows, 'Staff', `staff-list-${today}`);
     }
     case 'monthly': {
-      const income = db
+      const income = (await db
         .prepare(
-          `SELECT strftime('%Y-%m', payment_date) as month, SUM(amount_paid) as total
+          `SELECT left(payment_date, 7) as month, SUM(amount_paid) as total
            FROM fees WHERE payment_date IS NOT NULL GROUP BY month ORDER BY month DESC`
         )
-        .all() as Record<string, any>[];
-      const expense = db
+        .all()) as Record<string, any>[];
+      const expense = (await db
         .prepare(
-          `SELECT strftime('%Y-%m', expense_date) as month, SUM(amount) as total
+          `SELECT left(expense_date, 7) as month, SUM(amount) as total
            FROM expenses WHERE expense_date IS NOT NULL GROUP BY month ORDER BY month DESC`
         )
-        .all() as Record<string, any>[];
+        .all()) as Record<string, any>[];
       const months = Array.from(new Set([...income.map((r) => r.month), ...expense.map((r) => r.month)])).sort().reverse();
       const rows = months.map((m) => {
         const inc = income.find((r) => r.month === m)?.total || 0;

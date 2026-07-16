@@ -8,10 +8,10 @@ export async function GET(req: NextRequest) {
   const search = req.nextUrl.searchParams.get('search') || '';
   const db = getDb();
   const items = search
-    ? db
+    ? await db
         .prepare('SELECT * FROM staff WHERE name LIKE ? OR designation LIKE ? OR mobile LIKE ? ORDER BY name')
         .all(`%${search}%`, `%${search}%`, `%${search}%`)
-    : db.prepare('SELECT * FROM staff ORDER BY name').all();
+    : await db.prepare('SELECT * FROM staff ORDER BY name').all();
   return NextResponse.json({ items });
 }
 
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const data = await req.json();
   if (!data.name) return NextResponse.json({ error: 'Name is required.' }, { status: 400 });
   const db = getDb();
-  const result = db
+  const result = await db
     .prepare(
       'INSERT INTO staff (name, mobile, designation, salary, joining_date, address, remarks) VALUES (@name, @mobile, @designation, @salary, @joining_date, @address, @remarks)'
     )

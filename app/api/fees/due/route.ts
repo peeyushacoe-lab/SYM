@@ -20,6 +20,6 @@ export async function GET(req: NextRequest) {
     params.push(`%${search}%`, `%${search}%`);
   }
   query += ' ORDER BY f.remaining_due DESC';
-  const items = db.prepare(query).all(...params);
+  const items = await db.prepare(query).all(...params);
   return NextResponse.json({ items });
 }

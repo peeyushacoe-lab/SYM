@@ -11,7 +11,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   const amountPaid = Number(data.amount_paid) || 0;
   const remainingDue = Math.max(courseFee - amountPaid, 0);
   const db = getDb();
-  db.prepare(
+  await db.prepare(
     `UPDATE fees SET course_fee=@course_fee, amount_paid=@amount_paid, remaining_due=@remaining_due,
      payment_date=@payment_date, payment_mode=@payment_mode, receipt_number=@receipt_number, due_date=@due_date, remarks=@remarks
      WHERE id=@id`
@@ -34,6 +34,6 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  db.prepare('DELETE FROM fees WHERE id=?').run(params.id);
+  await db.prepare('DELETE FROM fees WHERE id=?').run(params.id);
   return NextResponse.json({ ok: true });
 }

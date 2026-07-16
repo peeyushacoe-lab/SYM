@@ -8,7 +8,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   if ('error' in auth) return auth.error;
   const data = await req.json();
   const db = getDb();
-  db.prepare(
+  await db.prepare(
     `UPDATE enquiries SET student_name=@student_name, mobile=@mobile, course_interested=@course_interested,
      qualification=@qualification, address=@address, enquiry_date=@enquiry_date, follow_up_date=@follow_up_date,
      status=@status, remarks=@remarks WHERE id=@id`
@@ -32,6 +32,6 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  db.prepare('DELETE FROM enquiries WHERE id=?').run(params.id);
+  await db.prepare('DELETE FROM enquiries WHERE id=?').run(params.id);
   return NextResponse.json({ ok: true });
 }

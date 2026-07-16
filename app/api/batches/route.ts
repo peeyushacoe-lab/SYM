@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const search = req.nextUrl.searchParams.get('search') || '';
   const db = getDb();
   const items = search
-    ? db
+    ? await db
         .prepare(
           `SELECT b.*, COUNT(s.id) as student_count FROM batches b
            LEFT JOIN students s ON s.batch_id = b.id
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
            GROUP BY b.id ORDER BY b.name`
         )
         .all(`%${search}%`, `%${search}%`)
-    : db
+    : await db
         .prepare(
           `SELECT b.*, COUNT(s.id) as student_count FROM batches b
            LEFT JOIN students s ON s.batch_id = b.id
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   const data = await req.json();
   if (!data.name) return NextResponse.json({ error: 'Batch name is required.' }, { status: 400 });
   const db = getDb();
-  const result = db
+  const result = await db
     .prepare(
       'INSERT INTO batches (name, course, start_date, end_date, timing, capacity, remarks, advance_fee) VALUES (@name, @course, @start_date, @end_date, @timing, @capacity, @remarks, @advance_fee)'
     )

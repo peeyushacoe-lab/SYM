@@ -9,20 +9,20 @@ export async function GET() {
   const db = getDb();
 
   if (session.role === 'management') {
-    const items = db.prepare('SELECT * FROM notices ORDER BY created_at DESC').all();
+    const items = await db.prepare('SELECT * FROM notices ORDER BY created_at DESC').all();
     return NextResponse.json({ items });
   }
 
   if (session.role === 'teacher') {
-    const items = db
+    const items = await db
       .prepare("SELECT * FROM notices WHERE audience IN ('All','Teachers') ORDER BY created_at DESC LIMIT 30")
       .all();
     return NextResponse.json({ items });
   }
 
   if (session.role === 'student') {
-    const student = db.prepare('SELECT batch_id FROM students WHERE user_id = ?').get(session.id) as any;
-    const items = db
+    const student = (await db.prepare('SELECT batch_id FROM students WHERE user_id = ?').get(session.id)) as any;
+    const items = await db
       .prepare(
         `SELECT * FROM notices WHERE audience IN ('All','Students') OR (audience='Batch' AND batch_id = ?)
          ORDER BY created_at DESC LIMIT 30`
@@ -32,7 +32,7 @@ export async function GET() {
   }
 
   if (session.role === 'guardian') {
-    const items = db
+    const items = await db
       .prepare("SELECT * FROM notices WHERE audience IN ('All','Guardians') ORDER BY created_at DESC LIMIT 30")
       .all();
     return NextResponse.json({ items });
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   const data = await req.json();
   if (!data.title) return NextResponse.json({ error: 'Title is required.' }, { status: 400 });
   const db = getDb();
-  const result = db
+  const result = await db
     .prepare('INSERT INTO notices (title, body, audience, batch_id, created_by) VALUES (?, ?, ?, ?, ?)')
     .run(data.title, data.body || null, data.audience || 'All', data.batch_id || null, auth.session.id);
   return NextResponse.json({ id: result.lastInsertRowid });

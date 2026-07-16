@@ -6,7 +6,7 @@ export async function GET() {
   const auth = await requireRole('teacher');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  const items = db
+  const items = await db
     .prepare(
       `SELECT b.*, COUNT(s.id) as student_count FROM teacher_batches tb
        JOIN batches b ON tb.batch_id = b.id

@@ -10,9 +10,9 @@ export async function POST(req: NextRequest) {
   }
 
   const db = getDb();
-  const user = db
+  const user = (await db
     .prepare('SELECT * FROM users WHERE username = ? AND active = 1')
-    .get(username) as any;
+    .get(username)) as any;
 
   if (!user || !bcrypt.compareSync(password, user.password)) {
     return NextResponse.json({ error: 'Invalid username or password.' }, { status: 401 });

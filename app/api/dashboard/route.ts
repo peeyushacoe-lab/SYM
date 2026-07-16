@@ -7,38 +7,38 @@ export async function GET() {
   if ('error' in auth) return auth.error;
   const db = getDb();
 
-  const students = (db.prepare('SELECT COUNT(*) as count FROM students').get() as any).count;
-  const batches = (db.prepare('SELECT COUNT(*) as count FROM batches').get() as any).count;
-  const staff = (db.prepare('SELECT COUNT(*) as count FROM staff').get() as any).count;
-  const enquiries = (db.prepare('SELECT COUNT(*) as count FROM enquiries').get() as any).count;
-  const feeCollected = (db.prepare('SELECT COALESCE(SUM(amount_paid),0) as total FROM fees').get() as any).total;
+  const students = ((await db.prepare('SELECT COUNT(*) as count FROM students').get()) as any).count;
+  const batches = ((await db.prepare('SELECT COUNT(*) as count FROM batches').get()) as any).count;
+  const staff = ((await db.prepare('SELECT COUNT(*) as count FROM staff').get()) as any).count;
+  const enquiries = ((await db.prepare('SELECT COUNT(*) as count FROM enquiries').get()) as any).count;
+  const feeCollected = ((await db.prepare('SELECT COALESCE(SUM(amount_paid),0) as total FROM fees').get()) as any).total;
   const dueFees = (
-    db.prepare('SELECT COALESCE(SUM(remaining_due),0) as total FROM fees WHERE remaining_due > 0').get() as any
+    (await db.prepare('SELECT COALESCE(SUM(remaining_due),0) as total FROM fees WHERE remaining_due > 0').get()) as any
   ).total;
-  const expenses = (db.prepare('SELECT COALESCE(SUM(amount),0) as total FROM expenses').get() as any).total;
+  const expenses = ((await db.prepare('SELECT COALESCE(SUM(amount),0) as total FROM expenses').get()) as any).total;
 
   const now = new Date();
   const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const monthlyIncome = (
-    db.prepare('SELECT COALESCE(SUM(amount_paid),0) as total FROM fees WHERE payment_date LIKE ?').get(`${monthStr}%`) as any
+    (await db.prepare('SELECT COALESCE(SUM(amount_paid),0) as total FROM fees WHERE payment_date LIKE ?').get(`${monthStr}%`)) as any
   ).total;
   const monthlyExpense = (
-    db.prepare('SELECT COALESCE(SUM(amount),0) as total FROM expenses WHERE expense_date LIKE ?').get(`${monthStr}%`) as any
+    (await db.prepare('SELECT COALESCE(SUM(amount),0) as total FROM expenses WHERE expense_date LIKE ?').get(`${monthStr}%`)) as any
   ).total;
 
-  const recentEnquiries = db
+  const recentEnquiries = await db
     .prepare('SELECT * FROM enquiries ORDER BY created_at DESC LIMIT 5')
     .all();
 
-  const incomeVsExpense = db
+  const incomeVsExpense = await db
     .prepare(
-      `SELECT strftime('%Y-%m', payment_date) as month, SUM(amount_paid) as total
+      `SELECT left(payment_date, 7) as month, SUM(amount_paid) as total
        FROM fees WHERE payment_date IS NOT NULL GROUP BY month ORDER BY month DESC LIMIT 6`
     )
     .all();
-  const expenseByMonth = db
+  const expenseByMonth = await db
     .prepare(
-      `SELECT strftime('%Y-%m', expense_date) as month, SUM(amount) as total
+      `SELECT left(expense_date, 7) as month, SUM(amount) as total
        FROM expenses WHERE expense_date IS NOT NULL GROUP BY month ORDER BY month DESC LIMIT 6`
     )
     .all();

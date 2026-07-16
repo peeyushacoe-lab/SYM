@@ -9,22 +9,22 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   if ('error' in auth) return auth.error;
   const params = await props.params;
   const db = getDb();
-  const row = db
+  const row = (await db
     .prepare(
       `SELECT f.*, s.name as student_name, s.mobile, b.name as batch_name
        FROM fees f LEFT JOIN students s ON f.student_id = s.id
        LEFT JOIN batches b ON s.batch_id = b.id WHERE f.id = ?`
     )
-    .get(params.id) as any;
+    .get(params.id)) as any;
   if (!row) return NextResponse.json({ error: 'Fee record not found.' }, { status: 404 });
 
   // Students can only fetch their own receipts; guardians only their children's.
   if (auth.session.role === 'student') {
-    const student = getStudentByUserId(auth.session.id);
+    const student = await getStudentByUserId(auth.session.id);
     if (!student || student.id !== row.student_id) {
       return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
     }
-  } else if (auth.session.role === 'guardian' && !guardianOwnsStudent(auth.session.id, row.student_id)) {
+  } else if (auth.session.role === 'guardian' && !(await guardianOwnsStudent(auth.session.id, row.student_id))) {
     return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
   }
 

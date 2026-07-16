@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   }
 
   const db = getDb();
-  const owns = db
+  const owns = await db
     .prepare('SELECT 1 FROM teacher_batches WHERE teacher_user_id = ? AND batch_id = ?')
     .get(auth.session.id, batch_id);
   if (!owns) return NextResponse.json({ error: 'Not authorized for this batch.' }, { status: 403 });
@@ -21,12 +21,12 @@ export async function POST(req: NextRequest) {
     `INSERT INTO attendance (batch_id, student_id, date, status, marked_by) VALUES (@batch_id, @student_id, @date, @status, @marked_by)
      ON CONFLICT(batch_id, student_id, date) DO UPDATE SET status = excluded.status, marked_by = excluded.marked_by`
   );
-  const tx = db.transaction((recs: any[]) => {
+  const tx = db.transaction(async (recs: any[]) => {
     for (const r of recs) {
-      stmt.run({ batch_id, student_id: r.student_id, date, status: r.status, marked_by: auth.session.id });
+      await stmt.run({ batch_id, student_id: r.student_id, date, status: r.status, marked_by: auth.session.id });
     }
   });
-  tx(records);
+  await tx(records);
 
   return NextResponse.json({ ok: true });
 }

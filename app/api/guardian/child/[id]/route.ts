@@ -8,16 +8,16 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   if ('error' in auth) return auth.error;
   const db = getDb();
 
-  const owns = db
+  const owns = await db
     .prepare('SELECT 1 FROM student_guardians WHERE guardian_user_id = ? AND student_id = ?')
     .get(auth.session.id, params.id);
   if (!owns) return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
 
-  const student = db
+  const student = await db
     .prepare('SELECT s.*, b.name as batch_name, b.timing FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE s.id = ?')
     .get(params.id);
-  const fees = db.prepare('SELECT * FROM fees WHERE student_id = ? ORDER BY payment_date DESC').all(params.id);
-  const attendance = db
+  const fees = await db.prepare('SELECT * FROM fees WHERE student_id = ? ORDER BY payment_date DESC').all(params.id);
+  const attendance = await db
     .prepare('SELECT date, status FROM attendance WHERE student_id = ? ORDER BY date DESC LIMIT 30')
     .all(params.id);
   const presentCount = (attendance as any[]).filter((a) => a.status === 'Present').length;

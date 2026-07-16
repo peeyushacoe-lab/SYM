@@ -6,12 +6,12 @@ export async function GET() {
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  const students = db.prepare('SELECT * FROM students').all();
-  const batches = db.prepare('SELECT * FROM batches').all();
-  const staff = db.prepare('SELECT * FROM staff').all();
-  const enquiries = db.prepare('SELECT * FROM enquiries').all();
-  const fees = db.prepare('SELECT * FROM fees').all();
-  const expenses = db.prepare('SELECT * FROM expenses').all();
+  const students = await db.prepare('SELECT * FROM students').all();
+  const batches = await db.prepare('SELECT * FROM batches').all();
+  const staff = await db.prepare('SELECT * FROM staff').all();
+  const enquiries = await db.prepare('SELECT * FROM enquiries').all();
+  const fees = await db.prepare('SELECT * FROM fees').all();
+  const expenses = await db.prepare('SELECT * FROM expenses').all();
 
   return NextResponse.json({
     version: 1,

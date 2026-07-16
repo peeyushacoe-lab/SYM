@@ -19,19 +19,19 @@ export async function GET(req: NextRequest) {
   const studentId = req.nextUrl.searchParams.get('student_id');
 
   if (role === 'management') {
-    const items = db.prepare(`${LIST_SQL} ORDER BY q.created_at DESC`).all();
+    const items = await db.prepare(`${LIST_SQL} ORDER BY q.created_at DESC`).all();
     return NextResponse.json({ items });
   }
   if (role === 'guardian' && studentId) {
-    if (!guardianOwnsStudent(id, studentId)) {
+    if (!(await guardianOwnsStudent(id, studentId))) {
       return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
     }
-    const items = db
+    const items = await db
       .prepare(`${LIST_SQL} WHERE q.raised_by = ? AND q.student_id = ? ORDER BY q.created_at DESC`)
       .all(id, studentId);
     return NextResponse.json({ items });
   }
-  const items = db.prepare(`${LIST_SQL} WHERE q.raised_by = ? ORDER BY q.created_at DESC`).all(id);
+  const items = await db.prepare(`${LIST_SQL} WHERE q.raised_by = ? ORDER BY q.created_at DESC`).all(id);
   return NextResponse.json({ items });
 }
 
@@ -43,17 +43,17 @@ export async function POST(req: NextRequest) {
 
   let studentId: number | null = null;
   if (auth.session.role === 'student') {
-    const student = getStudentByUserId(auth.session.id);
+    const student = await getStudentByUserId(auth.session.id);
     studentId = student?.id ?? null;
   } else if (auth.session.role === 'guardian' && data.student_id) {
-    if (!guardianOwnsStudent(auth.session.id, data.student_id)) {
+    if (!(await guardianOwnsStudent(auth.session.id, data.student_id))) {
       return NextResponse.json({ error: 'Not authorized for this student.' }, { status: 403 });
     }
     studentId = data.student_id;
   }
 
   const db = getDb();
-  const result = db
+  const result = await db
     .prepare('INSERT INTO queries (student_id, raised_by, subject, message) VALUES (?, ?, ?, ?)')
     .run(studentId, auth.session.id, data.subject, data.message || null);
   return NextResponse.json({ id: result.lastInsertRowid });

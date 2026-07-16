@@ -7,7 +7,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const auth = await requireRole('management', 'teacher');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  const item = db
+  const item = await db
     .prepare(`SELECT s.*, b.name as batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE s.id = ?`)
     .get(params.id);
   if (!item) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
@@ -20,7 +20,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   if ('error' in auth) return auth.error;
   const data = await req.json();
   const db = getDb();
-  db.prepare(
+  await db.prepare(
     `UPDATE students SET name=@name, father_name=@father_name, mother_name=@mother_name, mobile=@mobile,
      alt_mobile=@alt_mobile, address=@address, dob=@dob, gender=@gender, qualification=@qualification,
      course=@course, batch_id=@batch_id, admission_date=@admission_date, roll_number=@roll_number,
@@ -59,9 +59,9 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  db.prepare('DELETE FROM fees WHERE student_id=?').run(params.id);
-  db.prepare('DELETE FROM attendance WHERE student_id=?').run(params.id);
-  db.prepare('DELETE FROM student_guardians WHERE student_id=?').run(params.id);
-  db.prepare('DELETE FROM students WHERE id=?').run(params.id);
+  await db.prepare('DELETE FROM fees WHERE student_id=?').run(params.id);
+  await db.prepare('DELETE FROM attendance WHERE student_id=?').run(params.id);
+  await db.prepare('DELETE FROM student_guardians WHERE student_id=?').run(params.id);
+  await db.prepare('DELETE FROM students WHERE id=?').run(params.id);
   return NextResponse.json({ ok: true });
 }

@@ -8,8 +8,8 @@ export async function GET(req: NextRequest) {
   const search = req.nextUrl.searchParams.get('search') || '';
   const db = getDb();
   const items = search
-    ? db.prepare('SELECT * FROM courses WHERE name LIKE ? ORDER BY name').all(`%${search}%`)
-    : db.prepare('SELECT * FROM courses ORDER BY name').all();
+    ? await db.prepare('SELECT * FROM courses WHERE name LIKE ? ORDER BY name').all(`%${search}%`)
+    : await db.prepare('SELECT * FROM courses ORDER BY name').all();
   return NextResponse.json({ items });
 }
 
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (!data.name) return NextResponse.json({ error: 'Course name is required.' }, { status: 400 });
   const db = getDb();
   try {
-    const result = db
+    const result = await db
       .prepare('INSERT INTO courses (name, fee, duration, remarks) VALUES (@name, @fee, @duration, @remarks)')
       .run({
         name: String(data.name).trim(),

@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     params.push(status);
   }
   query += ' ORDER BY created_at DESC';
-  const items = db.prepare(query).all(...params);
+  const items = await db.prepare(query).all(...params);
   return NextResponse.json({ items });
 }
 
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   const data = await req.json();
   if (!data.student_name) return NextResponse.json({ error: 'Name is required.' }, { status: 400 });
   const db = getDb();
-  const result = db
+  const result = await db
     .prepare(
       `INSERT INTO enquiries (student_name, mobile, course_interested, qualification, address, enquiry_date, follow_up_date, status, remarks)
        VALUES (@student_name, @mobile, @course_interested, @qualification, @address, @enquiry_date, @follow_up_date, @status, @remarks)`

@@ -22,7 +22,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ studentId
 
   let studentId: number;
   if (auth.session.role === 'student') {
-    const student = getStudentByUserId(auth.session.id);
+    const student = await getStudentByUserId(auth.session.id);
     if (!student) {
       return NextResponse.json({ error: 'No student profile is linked to this account yet.' }, { status: 404 });
     }
@@ -31,14 +31,14 @@ export async function GET(req: NextRequest, props: { params: Promise<{ studentId
     }
     studentId = student.id;
   } else {
-    if (params.studentId === 'me' || !guardianOwnsStudent(auth.session.id, params.studentId)) {
+    if (params.studentId === 'me' || !(await guardianOwnsStudent(auth.session.id, params.studentId))) {
       return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
     }
     studentId = Number(params.studentId);
   }
 
   const section = req.nextUrl.searchParams.get('section') || 'summary';
-  const profile = getStudentProfile(studentId);
+  const profile = await getStudentProfile(studentId);
   if (!profile) return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
 
   switch (section) {
@@ -46,26 +46,25 @@ export async function GET(req: NextRequest, props: { params: Promise<{ studentId
       return NextResponse.json({ student: profile });
     case 'attendance': {
       const month = req.nextUrl.searchParams.get('month') || new Date().toISOString().slice(0, 7);
-      return NextResponse.json({
-        student: profile,
-        month,
-        days: getAttendanceMonth(studentId, month),
-        summary: getAttendanceSummary(studentId),
-      });
+      const [days, summary] = await Promise.all([getAttendanceMonth(studentId, month), getAttendanceSummary(studentId)]);
+      return NextResponse.json({ student: profile, month, days, summary });
     }
     case 'results':
-      return NextResponse.json({ student: profile, results: getResults(studentId) });
+      return NextResponse.json({ student: profile, results: await getResults(studentId) });
     case 'timetable':
-      return NextResponse.json({ student: profile, slots: getTimetable(profile.batch_id) });
+      return NextResponse.json({ student: profile, slots: await getTimetable(profile.batch_id) });
     case 'fees': {
-      const { fees, payments } = getFees(studentId);
+      const { fees, payments } = await getFees(studentId);
       return NextResponse.json({ student: profile, fees, payments });
     }
     default: {
       // summary: everything the overview dashboard needs
-      const { fees } = getFees(studentId);
-      const results = getResults(studentId);
-      const summary = getAttendanceSummary(studentId);
+      const [{ fees }, results, summary, slots] = await Promise.all([
+        getFees(studentId),
+        getResults(studentId),
+        getAttendanceSummary(studentId),
+        getTimetable(profile.batch_id),
+      ]);
       const totalDue = fees.reduce((s: number, f: any) => s + (f.remaining_due || 0), 0);
       return NextResponse.json({
         student: profile,
@@ -73,9 +72,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ studentId
         totalDue,
         feeCount: fees.length,
         latestResults: results.slice(0, 3),
-        todaySlots: getTimetable(profile.batch_id).filter(
-          (s: any) => s.day === (new Date().getDay() + 6) % 7
-        ),
+        todaySlots: slots.filter((s: any) => s.day === (new Date().getDay() + 6) % 7),
       });
     }
   }

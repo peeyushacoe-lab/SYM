@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     params.push(`%${search}%`, `%${search}%`);
   }
   query += dueOnly ? ' ORDER BY f.remaining_due DESC' : ' ORDER BY f.payment_date DESC';
-  const items = db.prepare(query).all(...params);
+  const items = await db.prepare(query).all(...params);
   return NextResponse.json({ items });
 }
 
@@ -47,8 +47,8 @@ export async function POST(req: NextRequest) {
   const remainingDue = Math.max(courseFee - amountPaid, 0);
   const db = getDb();
   // Default the fee type from the student's assigned fee plan
-  const student = db.prepare('SELECT fee_type FROM students WHERE id = ?').get(data.student_id) as any;
-  const result = db
+  const student = await db.prepare('SELECT fee_type FROM students WHERE id = ?').get(data.student_id) as any;
+  const result = await db
     .prepare(
       `INSERT INTO fees (student_id, course_fee, amount_paid, remaining_due, payment_date, payment_mode, receipt_number, due_date, remarks, fee_type)
        VALUES (@student_id, @course_fee, @amount_paid, @remaining_due, @payment_date, @payment_mode, @receipt_number, @due_date, @remarks, @fee_type)`

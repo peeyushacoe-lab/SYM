@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     LEFT JOIN batches b ON s.batch_id = b.id WHERE f.remaining_due > 0`;
   const params: any[] = [];
   if (search) {
-    query += ' AND (s.name LIKE ? OR s.mobile LIKE ?)';
+    query += ' AND (s.name ILIKE ? OR s.mobile ILIKE ?)';
     params.push(`%${search}%`, `%${search}%`);
   }
   query += ' ORDER BY f.remaining_due DESC';

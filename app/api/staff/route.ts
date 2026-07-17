@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const db = getDb();
   const items = search
     ? await db
-        .prepare('SELECT * FROM staff WHERE name LIKE ? OR designation LIKE ? OR mobile LIKE ? ORDER BY name')
+        .prepare('SELECT * FROM staff WHERE name ILIKE ? OR designation ILIKE ? OR mobile ILIKE ? ORDER BY name')
         .all(`%${search}%`, `%${search}%`, `%${search}%`)
     : await db.prepare('SELECT * FROM staff ORDER BY name').all();
   return NextResponse.json({ items });

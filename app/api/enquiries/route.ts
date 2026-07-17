@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   let query = 'SELECT * FROM enquiries WHERE 1=1';
   const params: any[] = [];
   if (search) {
-    query += ' AND (student_name LIKE ? OR mobile LIKE ? OR course_interested LIKE ?)';
+    query += ' AND (student_name ILIKE ? OR mobile ILIKE ? OR course_interested ILIKE ?)';
     params.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
   if (status) {

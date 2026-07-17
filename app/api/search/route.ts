@@ -12,14 +12,14 @@ export async function GET(req: NextRequest) {
   const students = await db
     .prepare(
       `SELECT s.*, b.name as batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id
-       WHERE s.name LIKE ? OR s.mobile LIKE ? OR s.roll_number LIKE ? OR s.registration_number LIKE ?
-         OR s.course LIKE ? OR b.name LIKE ?
+       WHERE s.name ILIKE ? OR s.mobile ILIKE ? OR s.roll_number ILIKE ? OR s.registration_number ILIKE ?
+         OR s.course ILIKE ? OR b.name ILIKE ?
        ORDER BY s.name LIMIT 30`
     )
     .all(like, like, like, like, like, like);
   const enquiries = await db
     .prepare(
-      `SELECT * FROM enquiries WHERE student_name LIKE ? OR mobile LIKE ? OR course_interested LIKE ?
+      `SELECT * FROM enquiries WHERE student_name ILIKE ? OR mobile ILIKE ? OR course_interested ILIKE ?
        ORDER BY created_at DESC LIMIT 20`
     )
     .all(like, like, like);

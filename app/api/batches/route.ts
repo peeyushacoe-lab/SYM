@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
         .prepare(
           `SELECT b.*, COUNT(s.id) as student_count FROM batches b
            LEFT JOIN students s ON s.batch_id = b.id
-           WHERE b.name LIKE ? OR b.course LIKE ?
+           WHERE b.name ILIKE ? OR b.course ILIKE ?
            GROUP BY b.id ORDER BY b.name`
         )
         .all(`%${search}%`, `%${search}%`)

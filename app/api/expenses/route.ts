@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   let query = 'SELECT * FROM expenses WHERE 1=1';
   const params: any[] = [];
   if (search) {
-    query += ' AND (category LIKE ? OR description LIKE ?)';
+    query += ' AND (category ILIKE ? OR description ILIKE ?)';
     params.push(`%${search}%`, `%${search}%`);
   }
   if (month) {

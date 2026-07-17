@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const items = search
     ? await db
         .prepare(
-          'SELECT * FROM alumni WHERE name LIKE ? OR course LIKE ? OR current_organization LIKE ? ORDER BY graduation_year DESC, name'
+          'SELECT * FROM alumni WHERE name ILIKE ? OR course ILIKE ? OR current_organization ILIKE ? ORDER BY graduation_year DESC, name'
         )
         .all(`%${search}%`, `%${search}%`, `%${search}%`)
     : await db.prepare('SELECT * FROM alumni ORDER BY graduation_year DESC, name').all();

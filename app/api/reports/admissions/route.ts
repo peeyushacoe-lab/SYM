@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const db = getDb();
   const query = search
     ? `SELECT s.*, b.name as batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id
-       WHERE s.name LIKE ? OR s.course LIKE ? OR s.batch_id IN (SELECT id FROM batches WHERE name LIKE ?)
+       WHERE s.name ILIKE ? OR s.course ILIKE ? OR s.batch_id IN (SELECT id FROM batches WHERE name ILIKE ?)
        ORDER BY s.admission_date DESC`
     : `SELECT s.*, b.name as batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id ORDER BY s.admission_date DESC`;
   const items = search

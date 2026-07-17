@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   let query = `SELECT s.*, b.name as batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE 1=1`;
   const params: any[] = [];
   if (search) {
-    query += ` AND (s.name LIKE ? OR s.mobile LIKE ? OR s.roll_number LIKE ? OR s.registration_number LIKE ? OR s.course LIKE ?)`;
+    query += ` AND (s.name ILIKE ? OR s.mobile ILIKE ? OR s.roll_number ILIKE ? OR s.registration_number ILIKE ? OR s.course ILIKE ?)`;
     params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
   }
   if (batchId) {

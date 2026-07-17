@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const search = req.nextUrl.searchParams.get('search') || '';
   const db = getDb();
   const items = search
-    ? await db.prepare('SELECT * FROM courses WHERE name LIKE ? ORDER BY name').all(`%${search}%`)
+    ? await db.prepare('SELECT * FROM courses WHERE name ILIKE ? ORDER BY name').all(`%${search}%`)
     : await db.prepare('SELECT * FROM courses ORDER BY name').all();
   return NextResponse.json({ items });
 }

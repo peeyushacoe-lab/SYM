@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     params.push(`${month}%`);
   }
   if (search) {
-    query += ' AND (s.name LIKE ? OR s.mobile LIKE ?)';
+    query += ' AND (s.name ILIKE ? OR s.mobile ILIKE ?)';
     params.push(`%${search}%`, `%${search}%`);
   }
   query += dueOnly ? ' ORDER BY f.remaining_due DESC' : ' ORDER BY f.payment_date DESC';

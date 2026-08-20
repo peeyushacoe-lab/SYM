@@ -16,12 +16,19 @@ import {
 // - students may only access their own record (studentId can be "me")
 // - guardians may only access linked children
 export async function GET(req: NextRequest, props: { params: Promise<{ studentId: string }> }) {
-  const auth = await requireRole('student', 'guardian');
+  const auth = await requireRole('student', 'guardian', 'management');
   if ('error' in auth) return auth.error;
   const params = await props.params;
 
   let studentId: number;
-  if (auth.session.role === 'student') {
+  if (auth.session.role === 'management') {
+    // Management can read any student's portal sections (used by the
+    // student profile page's attendance calendar / fee summary).
+    if (params.studentId === 'me') {
+      return NextResponse.json({ error: 'Specify a student id.' }, { status: 400 });
+    }
+    studentId = Number(params.studentId);
+  } else if (auth.session.role === 'student') {
     const student = await getStudentByUserId(auth.session.id);
     if (!student) {
       return NextResponse.json({ error: 'No student profile is linked to this account yet.' }, { status: 404 });

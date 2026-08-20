@@ -448,3 +448,68 @@ CREATE TABLE IF NOT EXISTS queries (
   responded_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ============================================================
+-- Tufee-parity additions (dashboard, staff attendance, fee plans,
+-- period-based collection, SMS templates). All idempotent.
+-- ============================================================
+
+-- Staff daily attendance (colour-coded register)
+CREATE TABLE IF NOT EXISTS staff_attendance (
+  id SERIAL PRIMARY KEY,
+  staff_id INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Present',
+  marked_by INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(staff_id, date)
+);
+
+-- Configurable fee categories (Settings > Fee Category)
+CREATE TABLE IF NOT EXISTS fee_categories (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  amount DOUBLE PRECISION DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+INSERT INTO fee_categories (name, amount)
+SELECT 'Default Fee', 0 WHERE NOT EXISTS (SELECT 1 FROM fee_categories);
+
+-- Per-student fee plan items (category + type + start + amount + partial)
+CREATE TABLE IF NOT EXISTS student_fee_items (
+  id SERIAL PRIMARY KEY,
+  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  category TEXT,
+  fee_type TEXT NOT NULL DEFAULT 'Monthly',
+  from_date TEXT,
+  amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+  partial_supported INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Editable message templates (Settings > SMS settings)
+CREATE TABLE IF NOT EXISTS sms_templates (
+  id SERIAL PRIMARY KEY,
+  key TEXT NOT NULL UNIQUE,
+  template TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+INSERT INTO sms_templates (key, template)
+SELECT * FROM (VALUES
+  ('registration', 'Dear STUDENT_NAME, welcome to INSTITUTE_NAME! Your registration is complete. Batch: BATCH_NAME.'),
+  ('fee_reminder', 'Dear STUDENT_NAME, your fee of Rs. AMOUNT for MONTH is due at INSTITUTE_NAME. Kindly pay at the earliest.'),
+  ('fee_receipt', 'Dear STUDENT_NAME, we received Rs. AMOUNT (Receipt RECEIPT_NO) at INSTITUTE_NAME. Thank you!'),
+  ('attendance', 'Dear Parent, STUDENT_NAME was STATUS today (DATE) at INSTITUTE_NAME.'),
+  ('exam', 'Dear STUDENT_NAME, you scored MARKS in EXAM_NAME at INSTITUTE_NAME.'),
+  ('enquiry', 'New Enquiry Alert! Student: STUDENT_NAME, Batch: BATCH_NAME, Date: DATE. INSTITUTE_NAME - Enquiry No: MOBILE'),
+  ('birthday', 'Happy Birthday STUDENT_NAME! Best wishes from all of us at INSTITUTE_NAME.')
+) AS v(key, template)
+WHERE NOT EXISTS (SELECT 1 FROM sms_templates);
+
+-- Student active/closed status + fee collection period & discount
+ALTER TABLE students ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';
+ALTER TABLE fees ADD COLUMN IF NOT EXISTS discount DOUBLE PRECISION DEFAULT 0;
+ALTER TABLE fees ADD COLUMN IF NOT EXISTS period_from TEXT;
+ALTER TABLE fees ADD COLUMN IF NOT EXISTS period_to TEXT;
+ALTER TABLE fees ADD COLUMN IF NOT EXISTS fee_item_id INTEGER;

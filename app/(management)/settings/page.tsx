@@ -4,23 +4,44 @@ import { useEffect, useState } from 'react';
 import Modal from '@/components/Modal';
 import Badge from '@/components/Badge';
 
-type Tab = 'account' | 'teachers' | 'guardians' | 'students' | 'backup';
+type Tab = 'account' | 'teachers' | 'guardians' | 'students' | 'admins' | 'fees' | 'sms' | 'backup';
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>('account');
+  const [me, setMe] = useState<any | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((d) => setMe(d.user || d))
+      .catch(() => {});
+  }, []);
+
+  const isSuper = me?.role === 'superadmin';
+
+  // Account creation (students / faculty / admins) is super-admin only.
+  const tabs: [Tab, string][] = isSuper
+    ? [
+        ['account', 'My account'],
+        ['students', 'Student accounts'],
+        ['teachers', 'Faculty accounts'],
+        ['admins', 'Admin accounts'],
+        ['guardians', 'Guardian accounts'],
+        ['fees', 'Fee categories'],
+        ['sms', 'Message templates'],
+        ['backup', 'Backup'],
+      ]
+    : [
+        ['account', 'My account'],
+        ['fees', 'Fee categories'],
+        ['sms', 'Message templates'],
+        ['backup', 'Backup'],
+      ];
 
   return (
     <div>
-      <div className="flex items-center gap-1 mb-5 border-b border-border">
-        {(
-          [
-            ['account', 'My account'],
-            ['teachers', 'Teacher accounts'],
-            ['guardians', 'Guardian accounts'],
-            ['students', 'Student accounts'],
-            ['backup', 'Backup'],
-          ] as [Tab, string][]
-        ).map(([key, label]) => (
+      <div className="flex items-center gap-1 mb-5 border-b border-border flex-wrap">
+        {tabs.map(([key, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -34,9 +55,12 @@ export default function SettingsPage() {
       </div>
 
       {tab === 'account' && <AccountTab />}
-      {tab === 'teachers' && <UsersTab role="teacher" />}
-      {tab === 'guardians' && <UsersTab role="guardian" />}
-      {tab === 'students' && <UsersTab role="student" />}
+      {isSuper && tab === 'teachers' && <UsersTab role="teacher" />}
+      {isSuper && tab === 'guardians' && <UsersTab role="guardian" />}
+      {isSuper && tab === 'students' && <UsersTab role="student" />}
+      {isSuper && tab === 'admins' && <UsersTab role="management" />}
+      {tab === 'fees' && <FeeCategoriesTab />}
+      {tab === 'sms' && <SmsTemplatesTab />}
       {tab === 'backup' && <BackupTab />}
     </div>
   );
@@ -165,12 +189,13 @@ function BackupTab() {
 }
 
 const roleConfig: Record<string, { label: string; addLabel: string }> = {
-  teacher: { label: 'Teachers', addLabel: 'Add teacher' },
+  teacher: { label: 'Faculty', addLabel: 'Add faculty member' },
   guardian: { label: 'Guardians', addLabel: 'Add guardian' },
   student: { label: 'Student accounts', addLabel: 'Add student account' },
+  management: { label: 'Admins', addLabel: 'Add admin' },
 };
 
-function UsersTab({ role }: { role: 'teacher' | 'guardian' | 'student' }) {
+function UsersTab({ role }: { role: 'teacher' | 'guardian' | 'student' | 'management' }) {
   const [items, setItems] = useState<any[]>([]);
   const [batches, setBatches] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -251,7 +276,7 @@ function UsersTab({ role }: { role: 'teacher' | 'guardian' | 'student' }) {
               <th className="px-4 py-2.5 text-[11px] text-textSecondary uppercase">Name</th>
               <th className="px-4 py-2.5 text-[11px] text-textSecondary uppercase">Username</th>
               <th className="px-4 py-2.5 text-[11px] text-textSecondary uppercase">
-                {role === 'teacher' ? 'Batches' : role === 'guardian' ? 'Children' : 'Linked student'}
+                {role === 'teacher' ? 'Batches' : role === 'guardian' ? 'Children' : role === 'management' ? 'Role' : 'Linked student'}
               </th>
               <th className="px-4 py-2.5 text-[11px] text-textSecondary uppercase">Status</th>
               <th className="px-4 py-2.5 text-[11px] text-textSecondary uppercase text-right">Actions</th>
@@ -273,6 +298,7 @@ function UsersTab({ role }: { role: 'teacher' | 'guardian' | 'student' }) {
                     {role === 'teacher' && (u.batches?.map((b: any) => b.name).join(', ') || '-')}
                     {role === 'guardian' && (u.students?.map((s: any) => s.name).join(', ') || '-')}
                     {role === 'student' && (u.student?.name || '-')}
+                    {role === 'management' && 'Admin'}
                   </td>
                   <td className="px-4 py-2.5">
                     <Badge tone={u.active ? 'green' : 'gray'}>{u.active ? 'Active' : 'Inactive'}</Badge>
@@ -386,6 +412,141 @@ function UsersTab({ role }: { role: 'teacher' | 'guardian' | 'student' }) {
           </div>
         </form>
       </Modal>
+    </div>
+  );
+}
+
+
+function FeeCategoriesTab() {
+  const [items, setItems] = useState<any[]>([]);
+  const [name, setName] = useState('');
+  const [amount, setAmount] = useState('');
+  const [error, setError] = useState('');
+
+  function load() {
+    fetch('/api/fee-categories')
+      .then((r) => r.json())
+      .then((d) => setItems(d.items || []));
+  }
+  useEffect(load, []);
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    const res = await fetch('/api/fee-categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, amount: Number(amount) || 0 }),
+    });
+    if (!res.ok) {
+      setError((await res.json()).error || 'Failed to save.');
+      return;
+    }
+    setName('');
+    setAmount('');
+    load();
+  }
+
+  async function remove(id: number) {
+    if (!confirm('Delete this fee category?')) return;
+    await fetch(`/api/fee-categories/${id}`, { method: 'DELETE' });
+    load();
+  }
+
+  return (
+    <div className="space-y-4 max-w-xl">
+      <form onSubmit={add} className="card flex items-end gap-3 flex-wrap">
+        <label className="block flex-1 min-w-[160px]">
+          <span className="text-xs text-on-surface-variant">Category name</span>
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 1500 / Default Fee" required />
+        </label>
+        <label className="block w-32">
+          <span className="text-xs text-on-surface-variant">Amount</span>
+          <input type="number" step="any" className="input" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
+        </label>
+        <button className="btn btn-primary">Add category</button>
+        {error && <p className="text-sm text-red-500 w-full">{error}</p>}
+      </form>
+      <div className="card p-0">
+        {items.length === 0 ? (
+          <p className="p-4 text-sm text-on-surface-variant">No fee categories yet.</p>
+        ) : (
+          items.map((c) => (
+            <div key={c.id} className="flex items-center justify-between px-4 py-2.5 border-b border-outline-variant/20 last:border-0">
+              <span className="text-sm text-on-surface">{c.name}</span>
+              <span className="flex items-center gap-4">
+                <span className="text-sm text-on-surface-variant">{Number(c.amount) > 0 ? `Rs. ${Number(c.amount).toLocaleString('en-IN')}` : '-'}</span>
+                <button onClick={() => remove(c.id)} className="text-on-surface-variant hover:text-red-500">
+                  <span className="material-symbols-outlined text-[18px]">delete</span>
+                </button>
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+      <p className="text-xs text-on-surface-variant">
+        Fee categories appear in the student profile&apos;s &quot;Add fee item&quot; dropdown, like Tufee&apos;s Fee Category settings.
+      </p>
+    </div>
+  );
+}
+
+const TEMPLATE_LABELS: Record<string, string> = {
+  registration: 'Registration Message',
+  fee_reminder: 'Fee Reminder',
+  fee_receipt: 'Fee Receipt',
+  attendance: 'Attendance',
+  exam: 'Exam',
+  enquiry: 'Enquiry',
+  birthday: 'Birthdays',
+};
+const TEMPLATE_KEYWORDS = 'STUDENT_NAME, BATCH_NAME, AMOUNT, MONTH, DATE, STATUS, MARKS, EXAM_NAME, RECEIPT_NO, MOBILE, INSTITUTE_NAME';
+
+function SmsTemplatesTab() {
+  const [items, setItems] = useState<any[]>([]);
+  const [saved, setSaved] = useState('');
+
+  useEffect(() => {
+    fetch('/api/sms-templates')
+      .then((r) => r.json())
+      .then((d) => setItems(d.items || []));
+  }, []);
+
+  async function save(key: string, template: string) {
+    setSaved('');
+    const res = await fetch('/api/sms-templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, template }),
+    });
+    if (res.ok) {
+      setSaved(key);
+      setTimeout(() => setSaved(''), 1500);
+    }
+  }
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <div className="card">
+        <p className="text-[13px] font-semibold text-on-surface mb-1">Set message templates</p>
+        <p className="text-xs text-on-surface-variant">
+          Used when sending WhatsApp/SMS from the app. Keywords: <span className="font-mono">{TEMPLATE_KEYWORDS}</span>
+        </p>
+      </div>
+      {items.map((t) => (
+        <div key={t.key} className="card space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-on-surface">{TEMPLATE_LABELS[t.key] || t.key}</span>
+            {saved === t.key && <span className="text-xs text-green-600">Saved</span>}
+          </div>
+          <textarea
+            className="input min-h-[72px]"
+            defaultValue={t.template}
+            onBlur={(e) => e.target.value !== t.template && save(t.key, e.target.value)}
+          />
+          <p className="text-[11px] text-on-surface-variant">Edits save automatically when you click away.</p>
+        </div>
+      ))}
     </div>
   );
 }

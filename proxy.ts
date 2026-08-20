@@ -52,7 +52,12 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  if (requiredRole && session.role !== requiredRole) {
+  // Super admin can access everything the admin (management) can.
+  const roleOk =
+    !requiredRole ||
+    session.role === requiredRole ||
+    (requiredRole === 'management' && session.role === 'superadmin');
+  if (!roleOk) {
     return NextResponse.redirect(new URL(homeForRole[session.role], req.url));
   }
 

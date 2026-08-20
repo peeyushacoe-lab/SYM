@@ -29,6 +29,14 @@ export async function POST(req: NextRequest) {
   const data = await req.json();
   if (!data.student_name) return NextResponse.json({ error: 'Name is required.' }, { status: 400 });
   const db = getDb();
+  // Tufee behaviour: follow-up defaults to enquiry date + 5 days when not given
+  const enquiryDate = data.enquiry_date || new Date().toISOString().slice(0, 10);
+  let followUp = data.follow_up_date;
+  if (!followUp) {
+    const d = new Date(enquiryDate + 'T00:00:00');
+    d.setDate(d.getDate() + 5);
+    followUp = d.toISOString().slice(0, 10);
+  }
   const result = await db
     .prepare(
       `INSERT INTO enquiries (student_name, mobile, course_interested, qualification, address, enquiry_date, follow_up_date, status, remarks)
@@ -40,8 +48,8 @@ export async function POST(req: NextRequest) {
       course_interested: data.course_interested || null,
       qualification: data.qualification || null,
       address: data.address || null,
-      enquiry_date: data.enquiry_date || null,
-      follow_up_date: data.follow_up_date || null,
+      enquiry_date: enquiryDate,
+      follow_up_date: followUp,
       status: data.status || 'Pending',
       remarks: data.remarks || null,
     });

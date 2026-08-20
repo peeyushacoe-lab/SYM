@@ -78,6 +78,15 @@ export default function StudentsPage() {
           ),
         },
         { key: 'mobile', label: 'Mobile' },
+        {
+          key: 'status',
+          label: 'Status',
+          render: (r) => (
+            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${(r.status || 'Active') === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
+              {r.status || 'Active'}
+            </span>
+          ),
+        },
         { key: 'course', label: 'Course' },
         { key: 'batch_name', label: 'Batch' },
         {

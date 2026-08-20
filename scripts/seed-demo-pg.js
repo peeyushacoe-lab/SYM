@@ -63,6 +63,15 @@ async function main() {
       .run('admin', adminHash);
   }
 
+  // Super admin: the only account allowed to create student/faculty/admin logins.
+  const superExists = await db.prepare("SELECT id FROM users WHERE username = 'superadmin'").get();
+  if (!superExists) {
+    const superHash = bcrypt.hashSync('super123', 10);
+    await db
+      .prepare("INSERT INTO users (username, password, role, name) VALUES (?, ?, 'superadmin', 'Super Admin')")
+      .run('superadmin', superHash);
+  }
+
   // --- Courses ---
   const courses = [
     { name: 'NEET', fee: 85000, duration: '1 year' },

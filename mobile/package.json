@@ -1,0 +1,18 @@
+{
+  "name": "sym-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SYM - Shiksha Yogi Management mobile app (Capacitor shell)",
+  "scripts": {
+    "sync": "cap sync",
+    "open:android": "cap open android",
+    "build:android": "cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/app": "^6.0.3",
+    "@capacitor/cli": "^6.2.1",
+    "@capacitor/core": "^6.2.1",
+    "@capacitor/splash-screen": "^6.0.4"
+  }
+}

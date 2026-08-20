@@ -9,7 +9,7 @@ export async function GET() {
   const session = await getSessionFromCookies();
   if (!session) return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 });
 
-  if (session.role === 'management') {
+  if (session.role === 'management' || session.role === 'superadmin') {
     return NextResponse.json({ role: session.role, permissions: {}, defaultVisible: true });
   }
 

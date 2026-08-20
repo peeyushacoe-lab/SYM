@@ -5,7 +5,7 @@ import { requireRole } from '@/lib/api-auth';
 
 export async function PUT(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const auth = await requireRole('management');
+  const auth = await requireRole('superadmin');
   if ('error' in auth) return auth.error;
   const data = await req.json();
   const db = getDb();
@@ -49,7 +49,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
 
 export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const auth = await requireRole('management');
+  const auth = await requireRole('superadmin');
   if ('error' in auth) return auth.error;
   const db = getDb();
   await db.prepare('DELETE FROM teacher_batches WHERE teacher_user_id = ?').run(params.id);

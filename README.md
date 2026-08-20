@@ -32,7 +32,8 @@ Open http://localhost:3000 - you'll be redirected to `/login`.
 
 Demo logins (from `scripts/seed-demo-pg.js`):
 
-- **Management:** `admin` / `admin123`
+- **Super Admin:** `superadmin` / `super123` (only account that can create student / faculty / admin logins)
+- **Management (Admin):** `admin` / `admin123`
 - **Teacher:** `teacher1` / `teacher123`
 - **Guardian:** `guardian1` / `guardian123`
 - **Student:** `student1` / `student123`

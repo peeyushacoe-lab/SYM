@@ -8,7 +8,13 @@ export async function requireRole(
   if (!session) {
     return { error: NextResponse.json({ error: 'Not authenticated.' }, { status: 401 }) };
   }
-  if (roles.length > 0 && !roles.includes(session.role)) {
+  // Super admin is a superset of admin (management): any endpoint open to
+  // management is open to superadmin as well.
+  const allowed =
+    roles.length === 0 ||
+    roles.includes(session.role) ||
+    (session.role === 'superadmin' && roles.includes('management'));
+  if (!allowed) {
     return { error: NextResponse.json({ error: 'Not authorized.' }, { status: 403 }) };
   }
   return { session };

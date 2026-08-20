@@ -7,29 +7,47 @@ export async function GET() {
   if ('error' in auth) return auth.error;
   const db = getDb();
 
-  const students = ((await db.prepare('SELECT COUNT(*) as count FROM students').get()) as any).count;
-  const batches = ((await db.prepare('SELECT COUNT(*) as count FROM batches').get()) as any).count;
-  const staff = ((await db.prepare('SELECT COUNT(*) as count FROM staff').get()) as any).count;
-  const enquiries = ((await db.prepare('SELECT COUNT(*) as count FROM enquiries').get()) as any).count;
-  const feeCollected = ((await db.prepare('SELECT COALESCE(SUM(amount_paid),0) as total FROM fees').get()) as any).total;
-  const dueFees = (
-    (await db.prepare('SELECT COALESCE(SUM(remaining_due),0) as total FROM fees WHERE remaining_due > 0').get()) as any
-  ).total;
-  const expenses = ((await db.prepare('SELECT COALESCE(SUM(amount),0) as total FROM expenses').get()) as any).total;
-
   const now = new Date();
+  const today = now.toISOString().slice(0, 10);
   const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const monthlyIncome = (
-    (await db.prepare('SELECT COALESCE(SUM(amount_paid),0) as total FROM fees WHERE payment_date LIKE ?').get(`${monthStr}%`)) as any
-  ).total;
-  const monthlyExpense = (
-    (await db.prepare('SELECT COALESCE(SUM(amount),0) as total FROM expenses WHERE expense_date LIKE ?').get(`${monthStr}%`)) as any
-  ).total;
+  const mmdd = today.slice(5); // MM-DD for birthdays
 
-  const recentEnquiries = await db
-    .prepare('SELECT * FROM enquiries ORDER BY created_at DESC LIMIT 5')
-    .all();
+  const one = async (sql: string, ...params: any[]) =>
+    ((await db.prepare(sql).get(...params)) as any) || {};
 
+  const [
+    studentsActive, studentsClosed, batches, staffCount, enquiriesTotal, enquiriesActive, enquiriesClosed,
+    feeToday, feeMonth, feeAll,
+    expToday, expMonth, expAll,
+    dueAgg, examsTotal, birthdays,
+    studAttToday, studTotal, staffAttToday,
+    attendanceSummary,
+  ] = await Promise.all([
+    one(`SELECT COUNT(*) c FROM students WHERE COALESCE(status,'Active') = 'Active'`),
+    one(`SELECT COUNT(*) c FROM students WHERE status = 'Closed'`),
+    one('SELECT COUNT(*) c FROM batches'),
+    one('SELECT COUNT(*) c FROM staff'),
+    one('SELECT COUNT(*) c FROM enquiries'),
+    one(`SELECT COUNT(*) c FROM enquiries WHERE status NOT IN ('Joined','Not Interested','Lost')`),
+    one(`SELECT COUNT(*) c FROM enquiries WHERE status IN ('Joined','Not Interested','Lost')`),
+    one('SELECT COALESCE(SUM(amount_paid),0) t FROM fees WHERE payment_date = ?', today),
+    one('SELECT COALESCE(SUM(amount_paid),0) t FROM fees WHERE payment_date LIKE ?', `${monthStr}%`),
+    one('SELECT COALESCE(SUM(amount_paid),0) t FROM fees'),
+    one('SELECT COALESCE(SUM(amount),0) t FROM expenses WHERE expense_date = ?', today),
+    one('SELECT COALESCE(SUM(amount),0) t FROM expenses WHERE expense_date LIKE ?', `${monthStr}%`),
+    one('SELECT COALESCE(SUM(amount),0) t FROM expenses'),
+    one(`SELECT COUNT(DISTINCT student_id) c, COALESCE(SUM(remaining_due),0) t FROM fees WHERE remaining_due > 0`),
+    one('SELECT COUNT(*) c FROM exams'),
+    db.prepare(`SELECT id, name, dob, mobile FROM students WHERE dob IS NOT NULL AND substr(dob, 6, 5) = ? AND COALESCE(status,'Active') = 'Active'`).all(mmdd),
+    one('SELECT COUNT(DISTINCT student_id) c FROM attendance WHERE date = ?', today),
+    one(`SELECT COUNT(*) c FROM students WHERE COALESCE(status,'Active') = 'Active'`),
+    one('SELECT COUNT(DISTINCT staff_id) c FROM staff_attendance WHERE date = ?', today),
+    db.prepare(
+      `SELECT date, status, COUNT(*) c FROM attendance WHERE date LIKE ? GROUP BY date, status ORDER BY date`
+    ).all(`${monthStr}%`),
+  ]);
+
+  const recentEnquiries = await db.prepare('SELECT * FROM enquiries ORDER BY created_at DESC LIMIT 5').all();
   const incomeVsExpense = await db
     .prepare(
       `SELECT left(payment_date, 7) as month, SUM(amount_paid) as total
@@ -44,15 +62,34 @@ export async function GET() {
     .all();
 
   return NextResponse.json({
-    students,
-    batches,
-    staff,
-    enquiries,
-    feeCollected,
-    dueFees,
-    expenses,
-    monthlyIncome,
-    monthlyExpense,
+    // Tufee-style overview
+    students: studentsActive.c || 0,
+    studentsClosed: studentsClosed.c || 0,
+    batches: batches.c || 0,
+    staff: staffCount.c || 0,
+    enquiries: enquiriesTotal.c || 0,
+    enquiriesActive: enquiriesActive.c || 0,
+    enquiriesClosed: enquiriesClosed.c || 0,
+    exams: examsTotal.c || 0,
+    birthdaysToday: birthdays,
+    // Monthly summary
+    collected: { today: feeToday.t || 0, month: feeMonth.t || 0, allTime: feeAll.t || 0 },
+    spent: { today: expToday.t || 0, month: expMonth.t || 0, allTime: expAll.t || 0 },
+    // Due fees
+    dueStudents: dueAgg.c || 0,
+    dueFees: dueAgg.t || 0,
+    // Attendance progress
+    studentAttendanceMarked: studAttToday.c || 0,
+    studentAttendanceTotal: studTotal.c || 0,
+    staffAttendanceMarked: staffAttToday.c || 0,
+    staffAttendanceTotal: staffCount.c || 0,
+    attendanceSummary,
+    month: monthStr,
+    // Legacy fields kept for other consumers
+    feeCollected: feeAll.t || 0,
+    expenses: expAll.t || 0,
+    monthlyIncome: feeMonth.t || 0,
+    monthlyExpense: expMonth.t || 0,
     recentEnquiries,
     incomeVsExpense,
     expenseByMonth,

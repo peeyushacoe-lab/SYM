@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Shiksha Yogi</string>
+    <string name="title_activity_main">Shiksha Yogi</string>
+    <string name="package_name">com.shikshayogi.sym</string>
+    <string name="custom_url_scheme">com.shikshayogi.sym</string>
+</resources>

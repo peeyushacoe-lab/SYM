@@ -107,6 +107,28 @@ export default function CrudPage({
     return () => clearTimeout(t);
   }, [load]);
 
+  // Quick-add support: /page?add=1 opens the add modal immediately
+  useEffect(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('add') === '1') {
+      openAdd();
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Quick-edit support: /page?edit=<id> opens the edit modal once rows load
+  useEffect(() => {
+    if (typeof window === 'undefined' || rows.length === 0) return;
+    const editId = new URLSearchParams(window.location.search).get('edit');
+    if (!editId) return;
+    const row = rows.find((r) => String(r.id) === editId);
+    if (row) {
+      openEdit(row);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
+
   function openAdd() {
     const initial: Record<string, any> = {};
     fields.forEach((f) => (initial[f.name] = f.defaultValue ?? (f.type === 'checkbox' ? 0 : '')));

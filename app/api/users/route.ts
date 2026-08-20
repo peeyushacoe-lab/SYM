@@ -4,14 +4,14 @@ import getDb from '@/lib/db';
 import { requireRole } from '@/lib/api-auth';
 
 export async function GET(req: NextRequest) {
-  const auth = await requireRole('management');
+  const auth = await requireRole('superadmin');
   if ('error' in auth) return auth.error;
   const role = req.nextUrl.searchParams.get('role') || '';
   const db = getDb();
   const users = (
     role
       ? await db.prepare('SELECT id, username, name, role, mobile, email, active, created_at FROM users WHERE role = ? ORDER BY name').all(role)
-      : await db.prepare("SELECT id, username, name, role, mobile, email, active, created_at FROM users WHERE role != 'management' ORDER BY role, name").all()
+      : await db.prepare("SELECT id, username, name, role, mobile, email, active, created_at FROM users WHERE role NOT IN ('superadmin') ORDER BY role, name").all()
   ) as any[];
 
   const items = await Promise.all(
@@ -44,14 +44,15 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireRole('management');
+  // Only the super admin can create login accounts (students, faculty, admins).
+  const auth = await requireRole('superadmin');
   if ('error' in auth) return auth.error;
   const data = await req.json();
 
   if (!data.username || !data.password || !data.name || !data.role) {
     return NextResponse.json({ error: 'Username, password, name and role are required.' }, { status: 400 });
   }
-  if (!['teacher', 'guardian', 'student'].includes(data.role)) {
+  if (!['teacher', 'guardian', 'student', 'management'].includes(data.role)) {
     return NextResponse.json({ error: 'Invalid role.' }, { status: 400 });
   }
 

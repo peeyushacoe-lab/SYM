@@ -7,7 +7,7 @@ const JWT_SECRET = new TextEncoder().encode(
 );
 export const COOKIE_NAME = 'sym_token';
 
-export type Role = 'management' | 'teacher' | 'guardian' | 'student';
+export type Role = 'superadmin' | 'management' | 'teacher' | 'guardian' | 'student';
 
 export interface SessionUser {
   id: number;
@@ -48,6 +48,7 @@ export async function getSessionFromRequest(req: NextRequest): Promise<SessionUs
 }
 
 export const homeForRole: Record<Role, string> = {
+  superadmin: '/dashboard',
   management: '/dashboard',
   teacher: '/teacher',
   guardian: '/guardian',

@@ -18,7 +18,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const data = await req.json();
-  const result = await getDb()
+  const db = getDb();
+  const fromDate = data.from_date || new Date().toISOString().slice(0, 10);
+
+  const result = await db
     .prepare(
       `INSERT INTO student_fee_items (student_id, category, fee_type, from_date, amount, partial_supported)
        VALUES (@student_id, @category, @fee_type, @from_date, @amount, @partial_supported)`
@@ -27,7 +30,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       student_id: Number(params.id),
       category: data.category || null,
       fee_type: data.fee_type || 'Monthly',
-      from_date: data.from_date || new Date().toISOString().slice(0, 10),
+      from_date: fromDate,
       amount: Number(data.amount) || 0,
       partial_supported: data.partial_supported ? 1 : 0,
     });

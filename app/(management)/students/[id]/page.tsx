@@ -72,6 +72,7 @@ export default function StudentProfilePage(props: { params: Promise<{ id: string
       fee_item_id: d.feeItem?.id || null,
       feeType: d.feeType,
       partialSupported: d.partialSupported,
+      periodsElapsed: d.periodsElapsed || 0,
     });
     setCollectOpen(true);
   }
@@ -295,7 +296,17 @@ export default function StudentProfilePage(props: { params: Promise<{ id: string
             <span className="material-symbols-outlined text-[18px] text-primary">request_quote</span>
             Fee Plan
           </span>
-          <button onClick={() => setPlanOpen(true)} className="btn btn-outline !py-1.5">
+          <button
+            onClick={() => {
+              // Default the billing start to the BATCH's start date, not the
+              // student's join date — a late joiner still owes for the months
+              // that already elapsed since the batch began (the fee covers
+              // the whole batch, not just time-since-enrollment).
+              setPlan({ fee_type: 'Monthly', partial_supported: false, from_date: student.batch_start_date || '' });
+              setPlanOpen(true);
+            }}
+            className="btn btn-outline !py-1.5"
+          >
             <span className="material-symbols-outlined text-[16px]">add</span>
             Add fee item
           </button>
@@ -396,7 +407,17 @@ export default function StudentProfilePage(props: { params: Promise<{ id: string
         <form onSubmit={saveCollect} className="space-y-3">
           {collect.feeType && (
             <div className="text-xs text-on-surface-variant bg-surface-container-high rounded-lg px-3 py-2">
-              {collect.feeType} plan{collect.period_from ? ` · period auto-advanced to ${collect.period_from} → ${collect.period_to}` : ''}
+              {collect.feeType} plan
+              {collect.periodsElapsed > 1 ? (
+                <span className="text-red-500 font-medium">
+                  {' '}
+                  · {collect.periodsElapsed} months due ({collect.period_from} → {collect.period_to})
+                </span>
+              ) : collect.period_from ? (
+                ` · period ${collect.period_from} → ${collect.period_to}`
+              ) : (
+                ''
+              )}
               {collect.partialSupported ? ' · partial payment allowed' : ''}
             </div>
           )}

@@ -8,7 +8,10 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   if ('error' in auth) return auth.error;
   const db = getDb();
   const item = await db
-    .prepare(`SELECT s.*, b.name as batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE s.id = ?`)
+    .prepare(
+      `SELECT s.*, b.name as batch_name, b.start_date as batch_start_date
+       FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE s.id = ?`
+    )
     .get(params.id);
   if (!item) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
   return NextResponse.json({ item });

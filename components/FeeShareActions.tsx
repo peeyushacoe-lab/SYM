@@ -55,6 +55,9 @@ export default function FeeShareActions({ row }: { row: any }) {
   const num = contactNumber(row);
   const tel = num ? `tel:+${toIntl(num)}` : null;
   const wa = num ? `https://wa.me/${toIntl(num)}?text=${encodeURIComponent(waMessage(row))}` : null;
+  // Synthesized arrears rows (id like "item-5") have no actual payment/receipt
+  // yet — nothing has been collected, so there's nothing to share as a PDF.
+  const hasReceipt = /^\d+$/.test(String(row.id));
 
   return (
     <div className="flex items-center gap-2.5 justify-end">
@@ -74,14 +77,16 @@ export default function FeeShareActions({ row }: { row: any }) {
           <span className="material-symbols-outlined text-[18px]">chat</span>
         </a>
       )}
-      <button
-        type="button"
-        onClick={() => shareOrDownloadPdf(row)}
-        title="Share or download PDF receipt"
-        className="text-textSecondary hover:text-tertiary"
-      >
-        <span className="material-symbols-outlined text-[18px]">ios_share</span>
-      </button>
+      {hasReceipt && (
+        <button
+          type="button"
+          onClick={() => shareOrDownloadPdf(row)}
+          title="Share or download PDF receipt"
+          className="text-textSecondary hover:text-tertiary"
+        >
+          <span className="material-symbols-outlined text-[18px]">ios_share</span>
+        </button>
+      )}
     </div>
   );
 }

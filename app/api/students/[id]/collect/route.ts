@@ -1,25 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import getDb from '@/lib/db';
 import { requireRole } from '@/lib/api-auth';
+import { computeFeeItemDue, monthsSpanned, FeeItem, FeeRow } from '@/lib/feeEngine';
 
-function addMonths(dateStr: string, months: number): Date {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setMonth(d.getMonth() + months);
-  return d;
-}
-function iso(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-function lastDayOfPeriod(from: Date, months: number) {
-  const d = new Date(from);
-  d.setMonth(d.getMonth() + months);
-  d.setDate(d.getDate() - 1);
-  return d;
-}
-
-const PERIOD_MONTHS: Record<string, number> = { Monthly: 1, Quarterly: 3 };
-
-// GET -> next suggested collection (period auto-advance + next receipt no)
+// GET -> next suggested collection: sums ALL elapsed unpaid periods since the
+// fee item's own start date (usually the batch's start date), not just one
+// month. A student joining mid-batch is expected to owe for the months that
+// already elapsed before they joined — the fee covers the whole batch/course,
+// not just time-since-enrollment.
 export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const auth = await requireRole('management');
@@ -29,36 +17,42 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
 
   const item = (await db
     .prepare('SELECT * FROM student_fee_items WHERE student_id = ? AND active = 1 ORDER BY id LIMIT 1')
-    .get(studentId)) as any;
-  const lastFee = (await db
-    .prepare('SELECT * FROM fees WHERE student_id = ? AND period_to IS NOT NULL ORDER BY period_to DESC LIMIT 1')
-    .get(studentId)) as any;
+    .get(studentId)) as FeeItem | undefined;
   const maxReceipt = (await db
     .prepare(`SELECT COALESCE(MAX(NULLIF(regexp_replace(receipt_number, '\\D', '', 'g'), '')::int), 0) as max FROM fees`)
     .get()) as any;
 
-  const feeType = item?.fee_type || 'Monthly';
-  const months = PERIOD_MONTHS[feeType] || 0;
-  let periodFrom: string | null = null;
-  let periodTo: string | null = null;
-  if (months > 0) {
-    // Auto-advance: next period starts the day after the last collected period
-    const startStr = lastFee?.period_to
-      ? iso(new Date(new Date(lastFee.period_to + 'T00:00:00').getTime() + 86400000))
-      : item?.from_date || new Date().toISOString().slice(0, 10);
-    const from = new Date(startStr + 'T00:00:00');
-    periodFrom = iso(from);
-    periodTo = iso(lastDayOfPeriod(from, months));
+  if (!item) {
+    return NextResponse.json({
+      feeItem: null,
+      suggestedAmount: 0,
+      feeType: 'CourseWise',
+      periodFrom: null,
+      periodTo: null,
+      periodsElapsed: 0,
+      nextReceipt: String((maxReceipt?.max || 0) + 1),
+      partialSupported: false,
+    });
   }
 
+  const payments = (await db
+    .prepare('SELECT amount_paid, discount, period_from, period_to, remaining_due FROM fees WHERE fee_item_id = ?')
+    .all(item.id)) as FeeRow[];
+
+  const due = computeFeeItemDue(item, payments);
+
   return NextResponse.json({
-    feeItem: item || null,
-    suggestedAmount: item ? Number(item.amount) : 0,
-    feeType,
-    periodFrom,
-    periodTo,
+    feeItem: item,
+    suggestedAmount: due.totalDueForRange,
+    feeType: item.fee_type,
+    periodFrom: due.periodFrom,
+    periodTo: due.periodTo,
+    periodsElapsed: due.periodsElapsed,
+    outstandingAcrossAllTime: due.outstandingAcrossAllTime,
+    totalDueEver: due.totalDueEver,
+    totalPaidEver: due.totalPaidEver,
     nextReceipt: String((maxReceipt?.max || 0) + 1),
-    partialSupported: !!item?.partial_supported,
+    partialSupported: !!item.partial_supported,
   });
 }
 
@@ -76,11 +70,23 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (amountPaid <= 0) return NextResponse.json({ error: 'Paid amount must be greater than zero.' }, { status: 400 });
 
   const item = data.fee_item_id
-    ? ((await db.prepare('SELECT * FROM student_fee_items WHERE id = ?').get(Number(data.fee_item_id))) as any)
+    ? ((await db.prepare('SELECT * FROM student_fee_items WHERE id = ?').get(Number(data.fee_item_id))) as FeeItem | undefined)
     : ((await db
         .prepare('SELECT * FROM student_fee_items WHERE student_id = ? AND active = 1 ORDER BY id LIMIT 1')
-        .get(studentId)) as any);
-  const courseFee = item ? Number(item.amount) : amountPaid + discount;
+        .get(studentId)) as FeeItem | undefined);
+
+  // Recompute the amount owed for the given period server-side — never trust
+  // a client-supplied total. For recurring fee types (Monthly/Quarterly) this
+  // is (number of periods spanned) x (per-period amount), so a 5-month
+  // arrears collection correctly bills 5 x the monthly rate, not just 1.
+  const periodMonths = ['Monthly', 'Quarterly'].includes(item?.fee_type || '');
+  const courseFee =
+    item && periodMonths && data.period_from && data.period_to
+      ? monthsSpanned(data.period_from, data.period_to, item.fee_type) * Number(item.amount)
+      : item
+        ? Number(item.amount)
+        : amountPaid + discount;
+
   const remainingDue = Math.max(courseFee - amountPaid - discount, 0);
 
   if (remainingDue > 0 && item && !item.partial_supported) {

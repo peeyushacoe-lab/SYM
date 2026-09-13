@@ -7,7 +7,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 // - Production (after deploying SYM to Vercel or a VPS):
 //     url: 'https://your-app.vercel.app'  and remove cleartext
 // ============================================================
-const SERVER_URL = 'http://192.168.5.247:3000';
+const SERVER_URL = 'https://sym-navy.vercel.app';
 
 const config: CapacitorConfig = {
   appId: 'com.shikshayogi.sym',

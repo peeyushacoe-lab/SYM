@@ -201,7 +201,7 @@ export default function DashboardPage() {
           </span>
           <span className="text-xs text-on-surface-variant">{monthLabel}</span>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-[12px] font-medium text-green-600">Collected Fees</span>

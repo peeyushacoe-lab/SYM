@@ -139,7 +139,7 @@ export default function RequestsSection({ studentId }: { studentId?: number | st
       <Modal open={leaveModal} onClose={() => setLeaveModal(false)} title="Apply for leave">
         <form onSubmit={submitLeave} className="space-y-4">
           {error && <div className="text-sm text-danger">{error}</div>}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">From date</label>
               <input

@@ -43,7 +43,9 @@ function printReceipt(row: any) {
       <tr><td>Batch</td><td>${row.batch_name || '-'}</td></tr>
       <tr><td>Payment date</td><td>${row.payment_date || '-'}</td></tr>
       <tr><td>Payment mode</td><td>${row.payment_mode || '-'}</td></tr>
+      ${row.period_from && row.period_to ? `<tr><td>Fee period</td><td>${row.period_from} to ${row.period_to}</td></tr>` : ''}
       <tr><td>Total course fee</td><td>${formatCurrency(row.course_fee)}</td></tr>
+      ${row.discount ? `<tr><td>Discount</td><td>${formatCurrency(row.discount)}</td></tr>` : ''}
       <tr class="total"><td>Amount paid</td><td>${formatCurrency(row.amount_paid)}</td></tr>
       <tr><td>Remaining due</td><td>${formatCurrency(row.remaining_due)}</td></tr>
       ${row.due_date ? `<tr><td>Next due date</td><td>${row.due_date}</td></tr>` : ''}

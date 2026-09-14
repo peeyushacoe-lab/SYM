@@ -202,7 +202,7 @@ export default function TransportPage() {
 
       <Modal open={vehicleModal} onClose={() => setVehicleModal(false)} title={editingVehicle ? 'Edit vehicle' : 'New vehicle'}>
         <form onSubmit={handleSaveVehicle} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Vehicle number *</label>
               <input className="input" required value={vehicleForm.vehicle_number} onChange={(e) => setVehicleForm({ ...vehicleForm, vehicle_number: e.target.value })} />
@@ -216,7 +216,7 @@ export default function TransportPage() {
             <label className="label">Route name</label>
             <input className="input" placeholder="e.g. Route 1 - City Center" value={vehicleForm.route_name} onChange={(e) => setVehicleForm({ ...vehicleForm, route_name: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Driver name</label>
               <input className="input" value={vehicleForm.driver_name} onChange={(e) => setVehicleForm({ ...vehicleForm, driver_name: e.target.value })} />
@@ -283,7 +283,7 @@ export default function TransportPage() {
             <label className="label">Pickup point</label>
             <input className="input" value={assignForm.pickup_point} onChange={(e) => setAssignForm({ ...assignForm, pickup_point: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Monthly fee (Rs.)</label>
               <input type="number" min={0} className="input" value={assignForm.monthly_fee} onChange={(e) => setAssignForm({ ...assignForm, monthly_fee: e.target.value })} />

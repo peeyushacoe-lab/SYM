@@ -23,9 +23,15 @@ export async function POST(req: NextRequest) {
     .get(auth.session.id, fee.student_id);
   if (!owns) return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
 
-  const payAmount = Math.min(Number(amount), fee.remaining_due);
-  if (payAmount <= 0) {
-    return NextResponse.json({ error: 'Nothing due to pay.' }, { status: 400 });
+  // Reject overpayment outright rather than silently capping it — matches
+  // /api/pay's behavior (the endpoint actually wired up in the guardian/student
+  // portal today) so the two payment paths can't diverge again.
+  const amountNum = Number(amount);
+  if (amountNum <= 0) {
+    return NextResponse.json({ error: 'Amount must be greater than zero.' }, { status: 400 });
+  }
+  if (amountNum > fee.remaining_due) {
+    return NextResponse.json({ error: 'Amount exceeds the remaining due.' }, { status: 400 });
   }
 
   const txRef = `TXN-TEST-${Date.now()}`;
@@ -34,13 +40,15 @@ export async function POST(req: NextRequest) {
       .prepare(
         'INSERT INTO payments (fee_id, student_id, amount, method, status, transaction_ref, paid_by) VALUES (?,?,?,?,?,?,?)'
       )
-      .run(fee_id, fee.student_id, payAmount, 'Online', 'success', txRef, auth.session.id);
+      .run(fee_id, fee.student_id, amountNum, 'Online', 'success', txRef, auth.session.id);
 
-    const newPaid = fee.amount_paid + payAmount;
-    const newDue = Math.max(fee.course_fee - newPaid, 0);
+    // Factor in discount, same as the rest of the fee engine — otherwise this
+    // path can under-count remaining_due for any discounted fee row.
+    const newPaid = Number(fee.amount_paid) + amountNum;
+    const newDue = Math.max(Number(fee.course_fee) - newPaid - Number(fee.discount || 0), 0);
     await db.prepare('UPDATE fees SET amount_paid = ?, remaining_due = ? WHERE id = ?').run(newPaid, newDue, fee_id);
   });
   await tx();
 
-  return NextResponse.json({ ok: true, transaction_ref: txRef, amount: payAmount });
+  return NextResponse.json({ ok: true, transaction_ref: txRef, amount: amountNum });
 }

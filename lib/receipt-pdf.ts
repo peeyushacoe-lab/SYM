@@ -18,6 +18,9 @@ export interface ReceiptRow {
   due_date?: string | null;
   remarks?: string | null;
   receipt_number?: string | null;
+  discount?: number | null;
+  period_from?: string | null;
+  period_to?: string | null;
 }
 
 export function buildReceiptPdf(row: ReceiptRow): Promise<Buffer> {
@@ -46,10 +49,12 @@ export function buildReceiptPdf(row: ReceiptRow): Promise<Buffer> {
       ['Batch', row.batch_name || '-'],
       ['Payment date', row.payment_date || '-'],
       ['Payment mode', row.payment_mode || '-'],
-      ['Total course fee', formatCurrency(row.course_fee || 0)],
-      ['Amount paid', formatCurrency(row.amount_paid || 0)],
-      ['Remaining due', formatCurrency(row.remaining_due || 0)],
     ];
+    if (row.period_from && row.period_to) rows.push(['Fee period', `${row.period_from} to ${row.period_to}`]);
+    rows.push(['Total course fee', formatCurrency(row.course_fee || 0)]);
+    if (row.discount) rows.push(['Discount', formatCurrency(row.discount)]);
+    rows.push(['Amount paid', formatCurrency(row.amount_paid || 0)]);
+    rows.push(['Remaining due', formatCurrency(row.remaining_due || 0)]);
     if (row.due_date) rows.push(['Next due date', row.due_date]);
     if (row.remarks) rows.push(['Remarks', row.remarks]);
 

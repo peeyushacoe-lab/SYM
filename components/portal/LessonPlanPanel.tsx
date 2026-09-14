@@ -116,7 +116,7 @@ export default function LessonPlanPanel({ batchFilter }: { batchFilter?: number 
               </select>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Subject</label>
               <input className="input" required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />

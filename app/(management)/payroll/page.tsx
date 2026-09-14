@@ -107,7 +107,7 @@ export default function PayrollPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <div className="card px-4 py-3">
           <div className="text-[11px] text-textSecondary uppercase tracking-wide">Runs this month</div>
           <div className="text-lg font-semibold text-text mt-1">{runs.length}</div>
@@ -175,7 +175,7 @@ export default function PayrollPage() {
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="label">Basic salary</label>
               <input type="number" min={0} className="input" value={genForm.basic_salary} onChange={(e) => setGenForm({ ...genForm, basic_salary: e.target.value })} />

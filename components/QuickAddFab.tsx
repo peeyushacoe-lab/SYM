@@ -22,7 +22,7 @@ export default function QuickAddFab() {
       {open && (
         <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setOpen(false)} />
       )}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+      <div className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] right-6 z-50 flex flex-col items-end gap-2">
         {open && (
           <div className="bg-surface-container rounded-xl shadow-lg border border-outline-variant/40 overflow-hidden w-64 mb-1">
             <div className="px-4 py-3 border-b border-outline-variant/30 flex items-center justify-between">

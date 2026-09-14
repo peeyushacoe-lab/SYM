@@ -19,7 +19,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
     });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
-    if (String(e.message).includes('UNIQUE')) {
+    if (e.code === '23505' || /duplicate key/i.test(String(e.message))) {
       return NextResponse.json({ error: 'A course with this name already exists.' }, { status: 400 });
     }
     throw e;

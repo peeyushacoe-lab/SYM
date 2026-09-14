@@ -50,7 +50,7 @@ export default function VisitorsPage() {
         <button onClick={() => setOpen(true)} className="btn btn-primary">+ Log visitor</button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
         <div className="card !py-3">
           <div className="text-[11px] uppercase text-textSecondary">Currently inside</div>
           <div className="text-xl font-semibold text-text mt-1">{insideNow.length}</div>
@@ -103,7 +103,7 @@ export default function VisitorsPage() {
             <label className="label">Visitor name *</label>
             <input className="input" required value={form.visitor_name} onChange={(e) => setForm({ ...form, visitor_name: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Mobile</label>
               <input className="input" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} />

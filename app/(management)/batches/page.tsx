@@ -93,6 +93,11 @@ export default function BatchesPage() {
               ),
           },
           { key: 'start_date', label: 'Start date' },
+          {
+            key: 'monthly_fee',
+            label: 'Monthly fee',
+            render: (r) => (Number(r.monthly_fee) ? `Rs. ${Number(r.monthly_fee).toLocaleString('en-IN')}` : '-'),
+          },
         ]}
         fields={[
           { name: 'name', label: 'Batch name', required: true },
@@ -101,6 +106,12 @@ export default function BatchesPage() {
           { name: 'capacity', label: 'Capacity', type: 'number' },
           { name: 'start_date', label: 'Start date', type: 'date' },
           { name: 'end_date', label: 'End date', type: 'date' },
+          {
+            name: 'monthly_fee',
+            label: 'Monthly fee (Rs.)',
+            type: 'number',
+            hint: 'Used to auto-fill the Monthly fee when adding a student to this batch.',
+          },
           {
             name: 'advance_fee',
             label: 'Advance fee',

@@ -3,7 +3,9 @@ import getDb from '@/lib/db';
 import { requireRole } from '@/lib/api-auth';
 import { tableColumns } from '@/lib/pg';
 
-const TABLES = ['batches', 'students', 'staff', 'enquiries', 'fees', 'expenses'] as const;
+// Order matters for insertion: parents before children (batches/students
+// before student_fee_items, which fee rows reference via fee_item_id).
+const TABLES = ['batches', 'students', 'student_fee_items', 'staff', 'enquiries', 'fees', 'expenses'] as const;
 
 // Tables added after the backup/restore feature was built that still hold
 // foreign keys into students/batches/staff. They aren't part of the backup
@@ -20,6 +22,8 @@ const DEPENDENT_TABLES = [
   'student_guardians',
   'exams',
   'notices',
+  'homework',
+  'lesson_plans',
 ] as const;
 
 export async function POST(req: NextRequest) {

@@ -72,7 +72,7 @@ export default function AppShell({
               key={item.href}
               href={item.href}
               onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-2.5 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${
+              className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
                 active
                   ? 'text-tertiary font-bold bg-white/60 border-l-4 border-tertiary translate-x-1 shadow-soft'
                   : 'text-on-surface-variant/80 border-l-4 border-transparent hover:text-on-surface hover:bg-white/40'
@@ -89,7 +89,7 @@ export default function AppShell({
       <div className="mt-auto pt-3 border-t border-outline-variant/30">
         <button
           onClick={handleLogout}
-          className="w-full text-left flex items-center gap-2.5 px-4 py-2 rounded-lg text-[13px] font-medium text-on-surface-variant/80 hover:text-on-surface hover:bg-white/40 transition-colors"
+          className="w-full text-left flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-[13px] font-medium text-on-surface-variant/80 hover:text-on-surface hover:bg-white/40 transition-colors"
         >
           <span className="material-symbols-outlined">logout</span>
           {t('Sign Out')}
@@ -101,7 +101,7 @@ export default function AppShell({
   return (
     <div className="min-h-screen flex">
       {/* Desktop sidebar */}
-      <aside className="w-64 glass-sidebar flex-shrink-0 hidden md:flex md:flex-col py-6 px-3 sticky top-0 h-screen">
+      <aside className="w-64 glass-sidebar flex-shrink-0 hidden md:flex md:flex-col pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] px-3 sticky top-0 h-screen">
         {nav}
       </aside>
 
@@ -109,17 +109,17 @@ export default function AppShell({
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-on-surface/20 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute left-0 top-0 h-full w-64 glass-sidebar flex flex-col py-6 px-3 bg-white/95">
+          <aside className="absolute left-0 top-0 h-full w-64 max-w-[85vw] glass-sidebar flex flex-col pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] px-3 bg-white/95">
             {nav}
           </aside>
         </div>
       )}
 
       <main className="flex-1 min-w-0 flex flex-col">
-        <header className="glass-header px-5 py-3 flex items-center justify-between sticky top-0 z-40">
+        <header className="glass-header px-5 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] flex items-center justify-between sticky top-0 z-40">
           <div className="flex items-center gap-2">
             <button
-              className="md:hidden text-tertiary p-1.5 hover:bg-white/50 rounded-lg transition-all"
+              className="md:hidden text-tertiary p-1.5 hover:bg-white/50 rounded-lg transition-all min-w-[40px] min-h-[40px] flex items-center justify-center"
               onClick={() => setMobileOpen(true)}
               aria-label="Open menu"
             >

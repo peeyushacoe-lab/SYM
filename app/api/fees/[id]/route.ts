@@ -7,12 +7,22 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const data = await req.json();
+  const db = getDb();
+
+  // The generic fee-edit form has no discount field, so a bare `data.discount`
+  // would come through as undefined and silently wipe out any discount that
+  // was applied when this row was created via the arrears-collection flow —
+  // preserve the existing value unless the caller explicitly sends a new one.
+  const existing = (await db.prepare('SELECT discount FROM fees WHERE id = ?').get(params.id)) as any;
+  if (!existing) return NextResponse.json({ error: 'Fee record not found.' }, { status: 404 });
+
   const courseFee = Number(data.course_fee) || 0;
   const amountPaid = Number(data.amount_paid) || 0;
-  const remainingDue = Math.max(courseFee - amountPaid, 0);
-  const db = getDb();
+  const discount = data.discount !== undefined ? Number(data.discount) || 0 : Number(existing.discount) || 0;
+  const remainingDue = Math.max(courseFee - amountPaid - discount, 0);
+
   await db.prepare(
-    `UPDATE fees SET course_fee=@course_fee, amount_paid=@amount_paid, remaining_due=@remaining_due,
+    `UPDATE fees SET course_fee=@course_fee, amount_paid=@amount_paid, remaining_due=@remaining_due, discount=@discount,
      payment_date=@payment_date, payment_mode=@payment_mode, receipt_number=@receipt_number, due_date=@due_date, remarks=@remarks
      WHERE id=@id`
   ).run({
@@ -20,6 +30,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
     course_fee: courseFee,
     amount_paid: amountPaid,
     remaining_due: remainingDue,
+    discount,
     payment_date: data.payment_date || null,
     payment_mode: data.payment_mode || 'Cash',
     receipt_number: data.receipt_number || null,

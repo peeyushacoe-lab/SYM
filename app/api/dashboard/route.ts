@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import getDb from '@/lib/db';
 import { requireRole } from '@/lib/api-auth';
-import { computeFeeItemDue, FeeItem, FeeRow } from '@/lib/feeEngine';
+import { computeFeeItemDue, effectiveAsOf, FeeItem, FeeRow } from '@/lib/feeEngine';
 
 export async function GET() {
   const auth = await requireRole('management');
@@ -52,7 +52,13 @@ export async function GET() {
   // since the batch started) aren't stored as fee rows until collected, so
   // they must be computed on the fly and added to the legacy due total above.
   const activeItems = (await db
-    .prepare(`SELECT id, fee_type, from_date, amount, partial_supported, student_id FROM student_fee_items WHERE active = 1`)
+    .prepare(
+      `SELECT sfi.id, sfi.fee_type, sfi.from_date, sfi.amount, sfi.partial_supported, sfi.student_id, b.end_date as batch_end_date
+       FROM student_fee_items sfi
+       JOIN students s ON sfi.student_id = s.id
+       LEFT JOIN batches b ON s.batch_id = b.id
+       WHERE sfi.active = 1`
+    )
     .all()) as any[];
   let itemDueTotal = 0;
   let itemDueStudents = 0;
@@ -61,7 +67,8 @@ export async function GET() {
     const payments = (await db
       .prepare('SELECT amount_paid, discount, period_from, period_to, remaining_due FROM fees WHERE fee_item_id = ?')
       .all(item.id)) as FeeRow[];
-    const due = computeFeeItemDue(item, payments);
+    const asOf = effectiveAsOf(today, row.batch_end_date);
+    const due = computeFeeItemDue(item, payments, asOf);
     if (due.outstandingAcrossAllTime > 0) {
       itemDueTotal += due.outstandingAcrossAllTime;
       itemDueStudents += 1;

@@ -150,7 +150,7 @@ export default function AcademicCalendarPage() {
             <label className="label">Description</label>
             <textarea className="input" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Type</label>
               <select className="input" value={form.event_type} onChange={(e) => setForm({ ...form, event_type: e.target.value })}>
@@ -169,7 +169,7 @@ export default function AcademicCalendarPage() {
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Start date *</label>
               <input type="date" className="input" required value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />

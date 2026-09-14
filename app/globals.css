@@ -156,3 +156,10 @@ body {
 .shadow-lift {
   box-shadow: 0 10px 40px rgba(60, 75, 95, 0.06);
 }
+
+/* ---------- Safe-area helpers (Capacitor Android WebView / notched phones) ----------
+   env(safe-area-inset-*) is 0 on devices/browsers without a notch or gesture
+   bar, so these are harmless no-ops outside the APK. Applied via Tailwind
+   arbitrary values (e.g. pt-[calc(0.75rem+env(safe-area-inset-top))]) on the
+   sticky header, the sidebar/drawer and any fixed bottom elements so content
+   never sits under the status bar or gesture nav bar. */

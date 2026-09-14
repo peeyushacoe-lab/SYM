@@ -61,7 +61,7 @@ export default function FeesSection({ studentKey }: { studentKey: string }) {
         <div className="text-sm text-accent bg-accentLight border border-accentBorder rounded-lg px-3 py-2">{payResult}</div>
       )}
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="card !py-3">
           <div className="text-[11px] uppercase text-textSecondary">Total fee</div>
           <div className="text-lg sm:text-xl font-semibold text-text mt-1">{formatCurrency(totalFee)}</div>

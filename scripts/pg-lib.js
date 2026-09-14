@@ -11,7 +11,12 @@ if (!connectionString) {
   console.error('Set DATABASE_URL in .env.local first.');
   process.exit(1);
 }
-const pool = new Pool({ connectionString, ssl: { rejectUnauthorized: false } });
+// Match lib/pg.ts: skip SSL for localhost (a local/self-hosted Postgres
+// won't speak SSL), only require it for remote providers like Neon/Supabase.
+const pool = new Pool({
+  connectionString,
+  ssl: connectionString.includes('localhost') ? undefined : { rejectUnauthorized: false },
+});
 
 function convertPlaceholders(sql) {
   if (/@\w+/.test(sql)) {

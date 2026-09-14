@@ -13,7 +13,12 @@ if (!connectionString) {
 }
 
 const schema = fs.readFileSync(path.join(__dirname, 'pg-schema.sql'), 'utf8');
-const client = new Client({ connectionString, ssl: { rejectUnauthorized: false } });
+// Match lib/pg.ts: skip SSL for localhost (a local/self-hosted Postgres
+// won't speak SSL), only require it for remote providers like Neon/Supabase.
+const client = new Client({
+  connectionString,
+  ssl: connectionString.includes('localhost') ? undefined : { rejectUnauthorized: false },
+});
 
 client
   .connect()

@@ -6,6 +6,7 @@ import CrudPage from '@/components/CrudPage';
 
 export default function StudentsPage() {
   const [batchOptions, setBatchOptions] = useState<{ value: any; label: string }[]>([]);
+  const [batchMap, setBatchMap] = useState<Record<string, { monthly_fee: number; start_date: string | null }>>({});
   const [courseOptions, setCourseOptions] = useState<string[]>([]);
   const [batchFilter, setBatchFilter] = useState('');
   const [courseFilter, setCourseFilter] = useState('');
@@ -13,7 +14,15 @@ export default function StudentsPage() {
   useEffect(() => {
     fetch('/api/batches')
       .then((r) => r.json())
-      .then((d) => setBatchOptions((d.items || []).map((b: any) => ({ value: b.id, label: b.name }))));
+      .then((d) => {
+        const items = d.items || [];
+        setBatchOptions(items.map((b: any) => ({ value: b.id, label: b.name })));
+        const map: Record<string, { monthly_fee: number; start_date: string | null }> = {};
+        items.forEach((b: any) => {
+          map[String(b.id)] = { monthly_fee: Number(b.monthly_fee) || 0, start_date: b.start_date || null };
+        });
+        setBatchMap(map);
+      });
     fetch('/api/courses')
       .then((r) => r.json())
       .then((d) => setCourseOptions((d.items || []).map((c: any) => c.name)));
@@ -116,7 +125,20 @@ export default function StudentsPage() {
         },
         { name: 'qualification', label: 'Qualification' },
         { name: 'course', label: 'Course', type: 'select', options: courseOptions.map((c) => ({ value: c, label: c })) },
-        { name: 'batch_id', label: 'Batch', type: 'select', options: batchOptions },
+        {
+          name: 'batch_id',
+          label: 'Batch',
+          type: 'select',
+          options: batchOptions,
+          // Selecting a batch auto-fills its monthly fee into the Monthly-fee
+          // field below (only relevant when fee_type is Monthly/Quarterly —
+          // the admin can still edit the amount per student afterwards).
+          onValueChange: (value, form) => {
+            const batch = batchMap[String(value)];
+            if (!batch) return;
+            return { batch_monthly_fee: batch.monthly_fee || form.batch_monthly_fee };
+          },
+        },
         {
           name: 'fee_category',
           label: 'Fee category',
@@ -126,7 +148,7 @@ export default function StudentsPage() {
             { value: 'Default', label: 'Default Fee (course fee)' },
             { value: 'Custom', label: 'Custom amount' },
           ],
-          showIf: (form) => !!form.batch_id,
+          showIf: (form) => !!form.batch_id && !['Monthly', 'Quarterly'].includes(form.fee_type),
           hint: 'Default Fee uses the course fee set in Courses.',
         },
         {
@@ -142,13 +164,36 @@ export default function StudentsPage() {
             { value: 'Installment', label: 'Installment' },
           ],
           showIf: (form) => !!form.batch_id,
+          onValueChange: (value, form) => {
+            if (!['Monthly', 'Quarterly'].includes(value)) return;
+            const batch = batchMap[String(form.batch_id)];
+            if (batch && !form.batch_monthly_fee) return { batch_monthly_fee: batch.monthly_fee };
+          },
         },
         {
           name: 'fee_amount',
           label: 'Custom fee amount (Rs.)',
           type: 'number',
-          showIf: (form) => !!form.batch_id && form.fee_category === 'Custom',
+          showIf: (form) => !!form.batch_id && form.fee_category === 'Custom' && !['Monthly', 'Quarterly'].includes(form.fee_type),
           required: false,
+        },
+        {
+          name: 'batch_monthly_fee',
+          label: 'Monthly fee (Rs.)',
+          type: 'number',
+          showIf: (form) => !!form.batch_id && ['Monthly', 'Quarterly'].includes(form.fee_type),
+          hideOnEdit: true,
+          hint: 'Auto-filled from the batch — edit here to give this student a different amount.',
+        },
+        {
+          name: 'backdate_fees',
+          label: 'Generate fees from batch start date',
+          type: 'checkbox',
+          defaultValue: 1,
+          span: 2,
+          showIf: (form) => !!form.batch_id && ['Monthly', 'Quarterly'].includes(form.fee_type),
+          hideOnEdit: true,
+          hint: 'On: dues start from when the batch began (e.g. batch started March, student joins September → 7 months due). Off: dues start from this student\'s own admission date instead.',
         },
         { name: 'admission_date', label: 'Admission date', type: 'date' },
         { name: 'roll_number', label: 'Roll number' },

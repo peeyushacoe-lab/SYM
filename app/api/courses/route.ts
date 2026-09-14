@@ -30,7 +30,10 @@ export async function POST(req: NextRequest) {
       });
     return NextResponse.json({ id: result.lastInsertRowid });
   } catch (e: any) {
-    if (String(e.message).includes('UNIQUE')) {
+    // Postgres reports a unique-violation as SQLSTATE 23505 (message text is
+    // "duplicate key value violates unique constraint ..."), not the SQLite
+    // wording "UNIQUE constraint failed" this check was originally written for.
+    if (e.code === '23505' || /duplicate key/i.test(String(e.message))) {
       return NextResponse.json({ error: 'A course with this name already exists.' }, { status: 400 });
     }
     throw e;

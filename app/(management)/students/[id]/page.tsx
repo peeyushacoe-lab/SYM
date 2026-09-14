@@ -214,7 +214,7 @@ export default function StudentProfilePage(props: { params: Promise<{ id: string
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 top-11 z-40 bg-surface-container rounded-xl shadow-lg border border-outline-variant/40 w-72 overflow-hidden">
+              <div className="absolute right-0 top-11 z-40 bg-surface-container rounded-xl shadow-lg border border-outline-variant/40 w-72 max-w-[85vw] overflow-hidden">
                 <div className="px-4 py-3 border-b border-outline-variant/30 flex items-center justify-between">
                   <span className="text-sm font-semibold text-on-surface">Students Menu</span>
                   <button onClick={() => setMenuOpen(false)}>
@@ -243,23 +243,23 @@ export default function StudentProfilePage(props: { params: Promise<{ id: string
         </div>
       </div>
 
-      <div className="card flex items-start gap-5">
+      <div className="card flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-5 text-center sm:text-left">
         {student.photo ? (
-          <img src={student.photo} alt={student.name} className="w-24 h-24 rounded-xl object-cover border border-border" />
+          <img src={student.photo} alt={student.name} className="w-24 h-24 rounded-xl object-cover border border-border shrink-0" />
         ) : (
-          <div className="w-24 h-24 rounded-xl bg-surface-container-high text-tertiary flex items-center justify-center text-3xl font-semibold">
+          <div className="w-24 h-24 rounded-xl bg-surface-container-high text-tertiary flex items-center justify-center text-3xl font-semibold shrink-0">
             {String(student.name || '?').slice(0, 1).toUpperCase()}
           </div>
         )}
-        <div className="flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
             <h1 className="text-[24px] font-semibold tracking-tight text-on-surface">{student.name}</h1>
             <Badge tone={isActive ? 'green' : 'gray'}>{student.status || 'Active'}</Badge>
           </div>
           <p className="text-sm text-on-surface-variant mt-0.5">
             {[student.course, student.batch_name].filter(Boolean).join(' · ') || 'No course assigned'}
           </p>
-          <div className="flex gap-2 mt-3 flex-wrap items-center">
+          <div className="flex gap-2 mt-3 flex-wrap items-center justify-center sm:justify-start">
             {student.roll_number && <Badge tone="blue">Roll: {student.roll_number}</Badge>}
             {totalDue > 0 ? <Badge tone="red">Due: {formatCurrency(totalDue)}</Badge> : <Badge tone="green">No dues</Badge>}
             <span className="flex items-center gap-2 ml-1 no-print">
@@ -421,7 +421,7 @@ export default function StudentProfilePage(props: { params: Promise<{ id: string
               {collect.partialSupported ? ' · partial payment allowed' : ''}
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="block">
               <span className="text-xs text-on-surface-variant">Receipt no</span>
               <input className="input" value={collect.receipt_number || ''} onChange={(e) => setCollect({ ...collect, receipt_number: e.target.value })} />
@@ -502,7 +502,7 @@ export default function StudentProfilePage(props: { params: Promise<{ id: string
               ))}
             </select>
           </label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="block">
               <span className="text-xs text-on-surface-variant">From</span>
               <input type="date" className="input" value={plan.from_date || ''} onChange={(e) => setPlan({ ...plan, from_date: e.target.value })} />

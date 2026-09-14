@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
 import getDb from '@/lib/db';
 import { requireRole } from '@/lib/api-auth';
+import { computeFeeItemDue, effectiveAsOf, FeeItem, FeeRow } from '@/lib/feeEngine';
 
 function sheetResponse(rows: Record<string, any>[], sheetName: string, fileName: string) {
   const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ Note: 'No records' }]);
@@ -85,16 +86,49 @@ export async function GET(req: NextRequest) {
       return sheetResponse(rows, 'Expenses', `expense-list-${month || today}`);
     }
     case 'due-fees': {
-      const rows = ((await db
+      // Combine legacy standalone due rows with live fee-item arrears (e.g. a
+      // late joiner owing months since the batch started, with no fee row
+      // created yet) — same logic as /api/fees/due, so the export matches
+      // what the Due Fees screen actually shows.
+      const legacyRows = ((await db
         .prepare(
-          `SELECT s.name, s.mobile, b.name as batch, f.course_fee, f.amount_paid, f.remaining_due, f.due_date
+          `SELECT s.name, s.mobile, b.name as batch, f.course_fee, f.amount_paid, f.discount, f.remaining_due, f.due_date
            FROM fees f LEFT JOIN students s ON f.student_id = s.id LEFT JOIN batches b ON s.batch_id = b.id
-           WHERE f.remaining_due > 0 ORDER BY f.remaining_due DESC`
+           WHERE f.remaining_due > 0 AND f.fee_item_id IS NULL ORDER BY f.remaining_due DESC`
         )
         .all()) as Record<string, any>[]).map((r) => ({
         Student: r.name, Mobile: r.mobile, Batch: r.batch, 'Total Fee': r.course_fee,
-        'Paid Amount': r.amount_paid, 'Remaining Due': r.remaining_due, 'Due Date': r.due_date,
+        'Paid Amount': r.amount_paid, Discount: r.discount || 0, 'Remaining Due': r.remaining_due, 'Due Date': r.due_date,
       }));
+
+      const activeItems = (await db
+        .prepare(
+          `SELECT sfi.id, sfi.fee_type, sfi.from_date, sfi.amount, sfi.partial_supported,
+             s.name, s.mobile, b.name as batch, b.end_date as batch_end_date
+           FROM student_fee_items sfi
+           JOIN students s ON sfi.student_id = s.id
+           LEFT JOIN batches b ON s.batch_id = b.id
+           WHERE sfi.active = 1`
+        )
+        .all()) as any[];
+      const itemRows: Record<string, any>[] = [];
+      for (const row of activeItems) {
+        const item: FeeItem = row;
+        const payments = (await db
+          .prepare('SELECT amount_paid, discount, period_from, period_to, remaining_due FROM fees WHERE fee_item_id = ?')
+          .all(item.id)) as FeeRow[];
+        const asOf = effectiveAsOf(today, row.batch_end_date);
+        const due = computeFeeItemDue(item, payments, asOf);
+        if (due.outstandingAcrossAllTime > 0) {
+          itemRows.push({
+            Student: row.name, Mobile: row.mobile, Batch: row.batch, 'Total Fee': due.totalDueEver,
+            'Paid Amount': due.totalPaidEver, Discount: 0, 'Remaining Due': due.outstandingAcrossAllTime,
+            'Due Date': due.periodTo,
+          });
+        }
+      }
+
+      const rows = [...legacyRows, ...itemRows].sort((a, b) => Number(b['Remaining Due']) - Number(a['Remaining Due']));
       return sheetResponse(rows, 'Due Fees', `due-fee-list-${today}`);
     }
     case 'fees': {
@@ -105,8 +139,10 @@ export async function GET(req: NextRequest) {
       q += ' ORDER BY f.payment_date DESC';
       const rows = ((await db.prepare(q).all(...p)) as Record<string, any>[]).map((r) => ({
         Student: r.student_name, Mobile: r.mobile, Batch: r.batch_name, 'Course Fee': r.course_fee,
-        'Amount Paid': r.amount_paid, 'Remaining Due': r.remaining_due, 'Payment Date': r.payment_date,
-        'Payment Mode': r.payment_mode, 'Receipt No': r.receipt_number, 'Due Date': r.due_date, Remarks: r.remarks,
+        'Amount Paid': r.amount_paid, Discount: r.discount || 0, 'Remaining Due': r.remaining_due,
+        'Fee Period': r.period_from && r.period_to ? `${r.period_from} to ${r.period_to}` : '',
+        'Payment Date': r.payment_date, 'Payment Mode': r.payment_mode, 'Receipt No': r.receipt_number,
+        'Due Date': r.due_date, Remarks: r.remarks,
       }));
       return sheetResponse(rows, 'Fee Collection', `fee-collection-${month || today}`);
     }

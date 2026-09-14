@@ -21,6 +21,16 @@ export interface FieldDef {
   showIf?: (form: Record<string, any>) => boolean;
   // Small helper text under the field
   hint?: string;
+  // Only render this field when adding a new row — hide it while editing an
+  // existing one (e.g. a one-time "generate the initial fee plan" field that
+  // has no matching column to prefill from, and would mislead into thinking
+  // editing re-triggers it).
+  hideOnEdit?: boolean;
+  // Called after this field's own value is set, with the new value and the
+  // form state (including that new value already applied). Return a partial
+  // object to merge additional field changes — e.g. selecting a batch can
+  // auto-fill a fee-amount field from that batch's data.
+  onValueChange?: (value: any, form: Record<string, any>) => Record<string, any> | void;
 }
 
 function readImageAsDataUrl(file: File, maxSize = 320): Promise<string> {
@@ -266,8 +276,9 @@ export default function CrudPage({
           {error && (
             <div className="text-sm text-danger bg-dangerLight border border-dangerBorder rounded-lg px-3 py-2">{error}</div>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {fields.map((f) => {
+              if (f.hideOnEdit && editing) return null;
               if (f.showIf && !f.showIf(form)) return null;
               return (
               <div key={f.name} className={f.span === 2 ? 'col-span-2' : 'col-span-1'}>
@@ -295,7 +306,12 @@ export default function CrudPage({
                     className="input"
                     required={f.required}
                     value={form[f.name] ?? ''}
-                    onChange={(e) => setForm({ ...form, [f.name]: e.target.value })}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      const next = { ...form, [f.name]: value };
+                      const patch = f.onValueChange?.(value, next);
+                      setForm(patch ? { ...next, ...patch } : next);
+                    }}
                   >
                     <option value="">Select...</option>
                     {f.options?.map((o) => (

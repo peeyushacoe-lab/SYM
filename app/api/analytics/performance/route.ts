@@ -12,7 +12,7 @@ export async function GET() {
   // Scope teachers to their own batches; management sees everything.
   const teacherFilter =
     auth.session.role === 'teacher'
-      ? 'AND s.batch_id IN (SELECT batch_id FROM teacher_batches WHERE teacher_id = ?)'
+      ? 'AND s.batch_id IN (SELECT batch_id FROM teacher_batches WHERE teacher_user_id = ?)'
       : '';
   const teacherParams = auth.session.role === 'teacher' ? [auth.session.id] : [];
 

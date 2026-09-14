@@ -52,9 +52,17 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const auth = await requireRole('superadmin');
   if ('error' in auth) return auth.error;
   const db = getDb();
+  // Every other table with a FK to users(id) must be cleared/unlinked first,
+  // or Postgres throws a raw FK-violation 500 when deleting a teacher who has
+  // a timetable slot, a staff login, or anyone who ever raised a leave
+  // request or query.
   await db.prepare('DELETE FROM teacher_batches WHERE teacher_user_id = ?').run(params.id);
   await db.prepare('DELETE FROM student_guardians WHERE guardian_user_id = ?').run(params.id);
   await db.prepare('UPDATE students SET user_id = NULL WHERE user_id = ?').run(params.id);
+  await db.prepare('UPDATE staff SET user_id = NULL WHERE user_id = ?').run(params.id);
+  await db.prepare('UPDATE timetable_slots SET teacher_user_id = NULL WHERE teacher_user_id = ?').run(params.id);
+  await db.prepare('DELETE FROM leave_requests WHERE requested_by = ?').run(params.id);
+  await db.prepare('DELETE FROM queries WHERE raised_by = ?').run(params.id);
   await db.prepare('DELETE FROM users WHERE id = ?').run(params.id);
   return NextResponse.json({ ok: true });
 }

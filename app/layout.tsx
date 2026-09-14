@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { LanguageProvider } from '@/lib/i18n';
 
@@ -12,6 +12,16 @@ export const metadata: Metadata = {
     ],
     apple: '/logo-192.png',
   },
+};
+
+// viewport-fit=cover lets the app draw under the Android status bar / gesture
+// nav bar inside the Capacitor WebView (no browser chrome there); safe-area
+// padding in globals.css / AppShell then keeps content clear of the notch.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#f8f9ff',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

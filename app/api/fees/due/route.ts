@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import getDb from '@/lib/db';
 import { requireRole } from '@/lib/api-auth';
-import { computeFeeItemDue, FeeItem, FeeRow } from '@/lib/feeEngine';
+import { computeFeeItemDue, effectiveAsOf, FeeItem, FeeRow } from '@/lib/feeEngine';
 
 // Due fees combine two sources:
 // 1. Legacy/standalone fee rows not tied to a fee item (old single collections).
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   const legacyRows = (await db.prepare(legacyQuery).all(...legacyParams)) as any[];
 
   let itemsQuery = `SELECT sfi.id as item_id, sfi.fee_type, sfi.from_date, sfi.amount, sfi.partial_supported,
-      s.id as student_id, s.name as student_name, s.mobile, s.roll_number, s.batch_id, b.name as batch_name, ${guardianJoin}
+      s.id as student_id, s.name as student_name, s.mobile, s.roll_number, s.batch_id, b.name as batch_name, b.end_date as batch_end_date, ${guardianJoin}
     FROM student_fee_items sfi
     JOIN students s ON sfi.student_id = s.id
     LEFT JOIN batches b ON s.batch_id = b.id
@@ -57,7 +57,8 @@ export async function GET(req: NextRequest) {
     const payments = (await db
       .prepare('SELECT amount_paid, discount, period_from, period_to, remaining_due FROM fees WHERE fee_item_id = ?')
       .all(item.id)) as FeeRow[];
-    const due = computeFeeItemDue(item, payments);
+    const asOf = effectiveAsOf(new Date().toISOString().slice(0, 10), row.batch_end_date);
+    const due = computeFeeItemDue(item, payments, asOf);
     if (due.outstandingAcrossAllTime > 0) {
       itemDueRows.push({
         id: `item-${item.id}`,

@@ -513,3 +513,7 @@ ALTER TABLE fees ADD COLUMN IF NOT EXISTS discount DOUBLE PRECISION DEFAULT 0;
 ALTER TABLE fees ADD COLUMN IF NOT EXISTS period_from TEXT;
 ALTER TABLE fees ADD COLUMN IF NOT EXISTS period_to TEXT;
 ALTER TABLE fees ADD COLUMN IF NOT EXISTS fee_item_id INTEGER;
+
+-- Batch-level monthly fee: lets Add Student auto-fill a per-student Monthly
+-- fee item from the batch instead of the admin retyping it every time.
+ALTER TABLE batches ADD COLUMN IF NOT EXISTS monthly_fee DOUBLE PRECISION DEFAULT 0;

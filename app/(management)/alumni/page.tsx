@@ -159,7 +159,7 @@ export default function AlumniPage() {
               )}
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Name *</label>
               <input className="input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -169,7 +169,7 @@ export default function AlumniPage() {
               <input className="input" value={form.course} onChange={(e) => setForm({ ...form, course: e.target.value })} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Graduation year</label>
               <input className="input" placeholder="e.g. 2023" value={form.graduation_year} onChange={(e) => setForm({ ...form, graduation_year: e.target.value })} />
@@ -183,7 +183,7 @@ export default function AlumniPage() {
             <label className="label">Email</label>
             <input className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Current occupation</label>
               <input className="input" value={form.current_occupation} onChange={(e) => setForm({ ...form, current_occupation: e.target.value })} />

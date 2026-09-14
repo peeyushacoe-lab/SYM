@@ -318,7 +318,7 @@ function UsersTab({ role }: { role: 'teacher' | 'guardian' | 'student' | 'manage
       <Modal open={open} onClose={() => setOpen(false)} title={cfg.addLabel}>
         <form onSubmit={handleSave} className="space-y-4">
           {error && <div className="text-sm text-danger bg-dangerLight border border-dangerBorder rounded-lg px-3 py-2">{error}</div>}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Full name *</label>
               <input className="input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import getDb from '@/lib/db';
 import { requireRole } from '@/lib/api-auth';
-import { computeFeeItemDue, monthsSpanned, FeeItem, FeeRow } from '@/lib/feeEngine';
+import { computeFeeItemDue, effectiveAsOf, monthsSpanned, FeeItem, FeeRow } from '@/lib/feeEngine';
 
 // GET -> next suggested collection: sums ALL elapsed unpaid periods since the
 // fee item's own start date (usually the batch's start date), not just one
@@ -18,6 +18,9 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const item = (await db
     .prepare('SELECT * FROM student_fee_items WHERE student_id = ? AND active = 1 ORDER BY id LIMIT 1')
     .get(studentId)) as FeeItem | undefined;
+  const batch = (await db
+    .prepare('SELECT b.end_date FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE s.id = ?')
+    .get(studentId)) as any;
   const maxReceipt = (await db
     .prepare(`SELECT COALESCE(MAX(NULLIF(regexp_replace(receipt_number, '\\D', '', 'g'), '')::int), 0) as max FROM fees`)
     .get()) as any;
@@ -39,7 +42,8 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
     .prepare('SELECT amount_paid, discount, period_from, period_to, remaining_due FROM fees WHERE fee_item_id = ?')
     .all(item.id)) as FeeRow[];
 
-  const due = computeFeeItemDue(item, payments);
+  const asOf = effectiveAsOf(new Date().toISOString().slice(0, 10), batch?.end_date);
+  const due = computeFeeItemDue(item, payments, asOf);
 
   return NextResponse.json({
     feeItem: item,
@@ -69,23 +73,49 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const discount = Number(data.discount) || 0;
   if (amountPaid <= 0) return NextResponse.json({ error: 'Paid amount must be greater than zero.' }, { status: 400 });
 
+  // A client-supplied fee_item_id must belong to THIS student — otherwise a
+  // stale id from a different student's page could apply a payment against
+  // another student's fee plan (wrong arrears reduction, wrong student billed).
   const item = data.fee_item_id
-    ? ((await db.prepare('SELECT * FROM student_fee_items WHERE id = ?').get(Number(data.fee_item_id))) as FeeItem | undefined)
+    ? ((await db
+        .prepare('SELECT * FROM student_fee_items WHERE id = ? AND student_id = ?')
+        .get(Number(data.fee_item_id), studentId)) as FeeItem | undefined)
     : ((await db
         .prepare('SELECT * FROM student_fee_items WHERE student_id = ? AND active = 1 ORDER BY id LIMIT 1')
         .get(studentId)) as FeeItem | undefined);
 
-  // Recompute the amount owed for the given period server-side — never trust
-  // a client-supplied total. For recurring fee types (Monthly/Quarterly) this
-  // is (number of periods spanned) x (per-period amount), so a 5-month
-  // arrears collection correctly bills 5 x the monthly rate, not just 1.
-  const periodMonths = ['Monthly', 'Quarterly'].includes(item?.fee_type || '');
-  const courseFee =
-    item && periodMonths && data.period_from && data.period_to
-      ? monthsSpanned(data.period_from, data.period_to, item.fee_type) * Number(item.amount)
-      : item
-        ? Number(item.amount)
-        : amountPaid + discount;
+  if (data.fee_item_id && !item) {
+    return NextResponse.json({ error: 'This fee item does not belong to this student.' }, { status: 400 });
+  }
+
+  // Recompute the amount owed AND the legitimate period server-side — never
+  // trust a client-supplied period or total. Without this, a caller could
+  // submit an arbitrary period range to under/over-bill an arrears
+  // collection, or silently "forgive" elapsed unpaid months by closing out a
+  // shorter range than what's actually owed.
+  const isRecurring = ['Monthly', 'Quarterly'].includes(item?.fee_type || '');
+  let periodFrom = data.period_from || null;
+  let periodTo = data.period_to || null;
+  let courseFee = item ? Number(item.amount) : amountPaid + discount;
+
+  if (item && isRecurring) {
+    const existingPayments = (await db
+      .prepare('SELECT amount_paid, discount, period_from, period_to, remaining_due FROM fees WHERE fee_item_id = ?')
+      .all(item.id)) as FeeRow[];
+    const batch = (await db
+      .prepare('SELECT b.end_date FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE s.id = ?')
+      .get(studentId)) as any;
+    const asOf = effectiveAsOf(new Date().toISOString().slice(0, 10), batch?.end_date);
+    const due = computeFeeItemDue(item, existingPayments, asOf);
+    if (due.periodsElapsed === 0 || !due.periodFrom || !due.periodTo) {
+      return NextResponse.json({ error: 'Nothing is due yet for this fee item.' }, { status: 400 });
+    }
+    // The only legitimate range to bill is exactly the currently-outstanding
+    // one — the client may only ever be requesting THIS collection.
+    periodFrom = due.periodFrom;
+    periodTo = due.periodTo;
+    courseFee = monthsSpanned(periodFrom, periodTo, item.fee_type) * Number(item.amount);
+  }
 
   const remainingDue = Math.max(courseFee - amountPaid - discount, 0);
 
@@ -120,8 +150,8 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       remarks: data.remarks || null,
       fee_type: item?.fee_type || 'CourseWise',
       discount,
-      period_from: data.period_from || null,
-      period_to: data.period_to || null,
+      period_from: periodFrom,
+      period_to: periodTo,
       fee_item_id: item?.id || null,
     });
 

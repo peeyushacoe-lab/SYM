@@ -208,7 +208,7 @@ export default function HostelPage() {
 
       <Modal open={roomModal} onClose={() => setRoomModal(false)} title={editingRoom ? 'Edit room' : 'New room'}>
         <form onSubmit={handleSaveRoom} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Room number *</label>
               <input className="input" required value={roomForm.room_number} onChange={(e) => setRoomForm({ ...roomForm, room_number: e.target.value })} />
@@ -218,7 +218,7 @@ export default function HostelPage() {
               <input className="input" value={roomForm.block} onChange={(e) => setRoomForm({ ...roomForm, block: e.target.value })} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Room type</label>
               <select className="input" value={roomForm.room_type} onChange={(e) => setRoomForm({ ...roomForm, room_type: e.target.value })}>

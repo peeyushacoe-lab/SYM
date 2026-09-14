@@ -73,5 +73,36 @@ export async function POST(req: NextRequest) {
       fee_amount: data.fee_category === 'Custom' && data.fee_amount ? Number(data.fee_amount) : null,
     });
 
-  return NextResponse.json({ id: result.lastInsertRowid });
+  const studentId = result.lastInsertRowid;
+
+  // Monthly/Quarterly batch fee -> auto-create the recurring fee item so
+  // arrears start accruing immediately, without a separate manual step on
+  // the student's profile page. "Backdate fees" (on by default) bills from
+  // the batch's own start date — a late joiner owes for months that already
+  // elapsed before they joined, since the batch fee covers the whole
+  // session, not just time-since-enrollment. Turning it off instead starts
+  // billing from this student's own admission date.
+  if (studentId && data.batch_id && ['Monthly', 'Quarterly'].includes(data.fee_type) && Number(data.batch_monthly_fee) > 0) {
+    const backdate = data.backdate_fees === undefined || Number(data.backdate_fees) ? true : false;
+    let fromDate = data.admission_date || new Date().toISOString().slice(0, 10);
+    if (backdate) {
+      const batch = (await db.prepare('SELECT start_date FROM batches WHERE id = ?').get(data.batch_id)) as any;
+      if (batch?.start_date) fromDate = batch.start_date;
+    }
+    await db
+      .prepare(
+        `INSERT INTO student_fee_items (student_id, category, fee_type, from_date, amount, partial_supported)
+         VALUES (@student_id, @category, @fee_type, @from_date, @amount, @partial_supported)`
+      )
+      .run({
+        student_id: studentId,
+        category: 'Default Fee',
+        fee_type: data.fee_type,
+        from_date: fromDate,
+        amount: Number(data.batch_monthly_fee),
+        partial_supported: 1,
+      });
+  }
+
+  return NextResponse.json({ id: studentId });
 }

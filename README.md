@@ -47,13 +47,17 @@ accounts" and "Student accounts" tabs to create logins and link them to batches 
 records. There is no public sign-up - this matches how the mobile app is used, with
 management controlling access.
 
-## Fee payments (guardian portal)
+## Fee payments (student & guardian portals)
 
-The "Pay now" button in the guardian portal currently runs in **test mode**: it records the
-payment and settles the fee immediately so you can demo the full flow without a live payment
-gateway. To go live, swap the handler in `app/api/guardian/pay/route.ts` for a real gateway
-integration (e.g. Razorpay order creation + webhook verification) - the request/response
-shape is already set up to support this.
+The "Pay now" button in both the student and guardian portals (`components/portal/FeesSection.tsx`)
+currently runs in **test mode**: it calls `app/api/pay/route.ts`, which records the payment and
+settles the fee immediately so you can demo the full flow without a live payment gateway. To go
+live, swap that handler for a real gateway integration (e.g. Razorpay order creation + webhook
+verification) - the request/response shape is already set up to support this.
+
+(`app/api/guardian/pay/route.ts` is a guardian-only variant of the same flow, kept for API
+compatibility but not currently called by any page — the portal UI uses the unified `/api/pay`
+endpoint for both roles instead.)
 
 ## Notes on this build
 

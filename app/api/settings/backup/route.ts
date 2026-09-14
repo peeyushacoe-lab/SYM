@@ -10,6 +10,7 @@ export async function GET() {
   const batches = await db.prepare('SELECT * FROM batches').all();
   const staff = await db.prepare('SELECT * FROM staff').all();
   const enquiries = await db.prepare('SELECT * FROM enquiries').all();
+  const studentFeeItems = await db.prepare('SELECT * FROM student_fee_items').all();
   const fees = await db.prepare('SELECT * FROM fees').all();
   const expenses = await db.prepare('SELECT * FROM expenses').all();
 
@@ -22,9 +23,10 @@ export async function GET() {
       batches: batches.length,
       staff: staff.length,
       enquiries: enquiries.length,
+      student_fee_items: studentFeeItems.length,
       fees: fees.length,
       expenses: expenses.length,
     },
-    data: { students, batches, staff, enquiries, fees, expenses },
+    data: { students, batches, staff, enquiries, student_fee_items: studentFeeItems, fees, expenses },
   });
 }

@@ -173,3 +173,14 @@ export function monthsSpanned(periodFrom: string, periodTo: string, feeType: str
   const span = ymIndex(periodTo) - ymIndex(periodFrom) + 1;
   return Math.max(Math.ceil(span / periodMonths), 1);
 }
+
+// A fee item tied to a batch should stop accruing new periods once the batch
+// has ended — otherwise a closed batch would keep billing students forever
+// just because nobody collected the last fee item. Callers pass the batch's
+// end_date (if any); this clamps "today" to that date so computeFeeItemDue
+// never counts periods past it. A batch with no end_date, or one that hasn't
+// ended yet, is unaffected (returns `today` unchanged).
+export function effectiveAsOf(today: string, batchEndDate?: string | null): string {
+  if (!batchEndDate) return today;
+  return batchEndDate < today ? batchEndDate : today;
+}

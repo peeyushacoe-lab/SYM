@@ -8,8 +8,8 @@ export async function GET(req: NextRequest) {
   const search = req.nextUrl.searchParams.get('search') || '';
   const month = req.nextUrl.searchParams.get('month') || '';
   const db = getDb();
-  let query = 'SELECT * FROM expenses WHERE 1=1';
-  const params: any[] = [];
+  let query = 'SELECT * FROM expenses WHERE school_id = ?';
+  const params: any[] = [auth.session.schoolId];
   if (search) {
     query += ' AND (category ILIKE ? OR description ILIKE ?)';
     params.push(`%${search}%`, `%${search}%`);
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   const db = getDb();
   const result = await db
     .prepare(
-      'INSERT INTO expenses (expense_date, category, description, amount, payment_mode, remarks) VALUES (@expense_date, @category, @description, @amount, @payment_mode, @remarks)'
+      'INSERT INTO expenses (expense_date, category, description, amount, payment_mode, remarks, school_id) VALUES (@expense_date, @category, @description, @amount, @payment_mode, @remarks, @school_id)'
     )
     .run({
       expense_date: data.expense_date,
@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
       amount: data.amount || 0,
       payment_mode: data.payment_mode || 'Cash',
       remarks: data.remarks || null,
+      school_id: auth.session.schoolId,
     });
   return NextResponse.json({ id: result.lastInsertRowid });
 }

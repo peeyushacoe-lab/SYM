@@ -42,14 +42,18 @@ export async function POST(req: NextRequest) {
 
   const db = getDb();
   const counts: Record<string, number> = {};
+  const schoolId = auth.session.schoolId;
 
   const restore = db.transaction(async () => {
-    // Delete children first to respect foreign keys
+    // Delete children first to respect foreign keys. Every one of these
+    // tables carries its own school_id, so scope every delete to THIS
+    // school only — an unscoped DELETE here would wipe every other
+    // school's data on the instance from a single school's restore.
     for (const table of DEPENDENT_TABLES) {
-      await db.prepare(`DELETE FROM ${table}`).run();
+      await db.prepare(`DELETE FROM ${table} WHERE school_id = ?`).run(schoolId);
     }
     for (const table of [...TABLES].reverse()) {
-      await db.prepare(`DELETE FROM ${table}`).run();
+      await db.prepare(`DELETE FROM ${table} WHERE school_id = ?`).run(schoolId);
     }
     for (const table of TABLES) {
       const rows: Record<string, any>[] = Array.isArray(backup.data[table]) ? backup.data[table] : [];
@@ -60,11 +64,15 @@ export async function POST(req: NextRequest) {
       const tableCols = await tableColumns(table);
       let inserted = 0;
       for (const row of rows) {
-        const cols = Object.keys(row).filter((k) => tableCols.includes(k));
+        const cols = Object.keys(row).filter((k) => tableCols.includes(k) && k !== 'school_id');
         if (!cols.length) continue;
+        // Force school_id to the restoring school regardless of what the
+        // backup file says, so a backup can never plant rows into another
+        // tenant (or leave them ownerless with a stale/foreign school_id).
+        const insertCols = [...cols, 'school_id'];
         await db
-          .prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${cols.map((c) => `@${c}`).join(', ')})`)
-          .run(Object.fromEntries(cols.map((c) => [c, row[c] ?? null])));
+          .prepare(`INSERT INTO ${table} (${insertCols.join(', ')}) VALUES (${insertCols.map((c) => `@${c}`).join(', ')})`)
+          .run({ ...Object.fromEntries(cols.map((c) => [c, row[c] ?? null])), school_id: schoolId });
         inserted++;
       }
       counts[table] = inserted;

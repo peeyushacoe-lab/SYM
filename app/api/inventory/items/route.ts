@@ -6,7 +6,7 @@ export async function GET() {
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  const items = await db.prepare('SELECT * FROM inventory_items ORDER BY name ASC').all();
+  const items = await db.prepare('SELECT * FROM inventory_items WHERE school_id = ? ORDER BY name ASC').all(auth.session.schoolId);
   return NextResponse.json({ items });
 }
 
@@ -19,8 +19,8 @@ export async function POST(req: NextRequest) {
   const qty = Number(data.quantity) || 0;
   const result = await db
     .prepare(
-      `INSERT INTO inventory_items (name, category, quantity, unit, unit_cost, reorder_level, location, remarks)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO inventory_items (name, category, quantity, unit, unit_cost, reorder_level, location, remarks, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       data.name,
@@ -30,13 +30,14 @@ export async function POST(req: NextRequest) {
       Number(data.unit_cost) || 0,
       Number(data.reorder_level) || 0,
       data.location || null,
-      data.remarks || null
+      data.remarks || null,
+      auth.session.schoolId
     );
 
   if (qty > 0) {
     await db
-      .prepare(`INSERT INTO inventory_transactions (item_id, type, quantity, reason, txn_date) VALUES (?, 'In', ?, 'Initial stock', ?)`)
-      .run(result.lastInsertRowid, qty, new Date().toISOString().slice(0, 10));
+      .prepare(`INSERT INTO inventory_transactions (item_id, type, quantity, reason, txn_date, school_id) VALUES (?, 'In', ?, 'Initial stock', ?, ?)`)
+      .run(result.lastInsertRowid, qty, new Date().toISOString().slice(0, 10), auth.session.schoolId);
   }
 
   return NextResponse.json({ id: result.lastInsertRowid });

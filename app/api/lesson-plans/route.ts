@@ -14,18 +14,18 @@ export async function GET(req: NextRequest) {
 
   if (auth.session.role === 'management') {
     const items = batchId
-      ? await db.prepare(`${LIST_SQL} WHERE lp.batch_id = ? ORDER BY lp.planned_date DESC, lp.id DESC`).all(batchId)
-      : await db.prepare(`${LIST_SQL} ORDER BY lp.planned_date DESC, lp.id DESC`).all();
+      ? await db.prepare(`${LIST_SQL} WHERE lp.school_id = ? AND lp.batch_id = ? ORDER BY lp.planned_date DESC, lp.id DESC`).all(auth.session.schoolId, batchId)
+      : await db.prepare(`${LIST_SQL} WHERE lp.school_id = ? ORDER BY lp.planned_date DESC, lp.id DESC`).all(auth.session.schoolId);
     return NextResponse.json({ items });
   }
 
   const items = await db
     .prepare(
-      `${LIST_SQL} WHERE lp.batch_id IN (SELECT batch_id FROM teacher_batches WHERE teacher_user_id = ?)
+      `${LIST_SQL} WHERE lp.school_id = ? AND lp.batch_id IN (SELECT batch_id FROM teacher_batches WHERE teacher_user_id = ?)
        ${batchId ? 'AND lp.batch_id = ?' : ''}
        ORDER BY lp.planned_date DESC, lp.id DESC`
     )
-    .all(...(batchId ? [auth.session.id, batchId] : [auth.session.id]));
+    .all(...(batchId ? [auth.session.schoolId, auth.session.id, batchId] : [auth.session.schoolId, auth.session.id]));
   return NextResponse.json({ items });
 }
 
@@ -47,9 +47,9 @@ export async function POST(req: NextRequest) {
 
   const result = await db
     .prepare(
-      `INSERT INTO lesson_plans (batch_id, subject, topic, description, planned_date, status, created_by)
-       VALUES (?,?,?,?,?,?,?)`
+      `INSERT INTO lesson_plans (batch_id, subject, topic, description, planned_date, status, created_by, school_id)
+       VALUES (?,?,?,?,?,?,?,?)`
     )
-    .run(data.batch_id, data.subject, data.topic, data.description || null, data.planned_date || null, data.status || 'Planned', auth.session.id);
+    .run(data.batch_id, data.subject, data.topic, data.description || null, data.planned_date || null, data.status || 'Planned', auth.session.id, auth.session.schoolId);
   return NextResponse.json({ id: result.lastInsertRowid });
 }

@@ -8,8 +8,8 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const params = await props.params;
   const db = getDb();
   const row = (await db
-    .prepare('SELECT * FROM student_documents WHERE id = ? AND student_id = ?')
-    .get(params.docId, params.id)) as any;
+    .prepare('SELECT * FROM student_documents WHERE id = ? AND student_id = ? AND school_id = ?')
+    .get(params.docId, params.id, auth.session.schoolId)) as any;
   if (!row) return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
 
   const match = /^data:([^;]+);base64,(.+)$/.exec(row.data_url);
@@ -28,6 +28,6 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   if ('error' in auth) return auth.error;
   const params = await props.params;
   const db = getDb();
-  await db.prepare('DELETE FROM student_documents WHERE id = ? AND student_id = ?').run(params.docId, params.id);
+  await db.prepare('DELETE FROM student_documents WHERE id = ? AND student_id = ? AND school_id = ?').run(params.docId, params.id, auth.session.schoolId);
   return NextResponse.json({ ok: true });
 }

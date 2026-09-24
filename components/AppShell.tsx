@@ -53,6 +53,7 @@ export default function AppShell({
     teacher: 'Teacher',
     guardian: 'Guardian',
     student: 'Student',
+    staff_admin: 'Administrator',
   };
 
   const nav = (

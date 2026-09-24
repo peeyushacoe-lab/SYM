@@ -7,6 +7,6 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  await db.prepare("UPDATE transport_assignments SET status='Inactive' WHERE id=?").run(params.id);
+  await db.prepare("UPDATE transport_assignments SET status='Inactive' WHERE id=? AND school_id=?").run(params.id, auth.session.schoolId);
   return NextResponse.json({ ok: true });
 }

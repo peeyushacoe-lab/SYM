@@ -124,12 +124,38 @@ export default function StudentsPage() {
           ],
         },
         { name: 'qualification', label: 'Qualification' },
-        { name: 'course', label: 'Course', type: 'select', options: courseOptions.map((c) => ({ value: c, label: c })) },
+        {
+          name: 'enrollment_type',
+          label: 'Enroll via',
+          type: 'select',
+          defaultValue: 'batch',
+          span: 2,
+          options: [
+            { value: 'batch', label: 'Batch' },
+            { value: 'course', label: 'Course' },
+          ],
+          hint: 'Choose one — a student is enrolled in either a batch or a standalone course, not both.',
+          // Derive the toggle from whichever of batch_id/course this row
+          // actually has set, since it isn't itself a DB column.
+          computeValue: (row) => (row.batch_id ? 'batch' : row.course ? 'course' : 'batch'),
+          // Switching the toggle clears out the other enrollment field so a
+          // stale batch_id/course from before the switch never gets submitted
+          // alongside the newly chosen one.
+          onValueChange: (value) => (value === 'batch' ? { course: '' } : { batch_id: '', fee_type: 'CourseWise', batch_monthly_fee: '' }),
+        },
+        {
+          name: 'course',
+          label: 'Course',
+          type: 'select',
+          options: courseOptions.map((c) => ({ value: c, label: c })),
+          showIf: (form) => form.enrollment_type === 'course',
+        },
         {
           name: 'batch_id',
           label: 'Batch',
           type: 'select',
           options: batchOptions,
+          showIf: (form) => form.enrollment_type !== 'course',
           // Selecting a batch auto-fills its monthly fee into the Monthly-fee
           // field below (only relevant when fee_type is Monthly/Quarterly —
           // the admin can still edit the amount per student afterwards).
@@ -148,7 +174,7 @@ export default function StudentsPage() {
             { value: 'Default', label: 'Default Fee (course fee)' },
             { value: 'Custom', label: 'Custom amount' },
           ],
-          showIf: (form) => !!form.batch_id && !['Monthly', 'Quarterly'].includes(form.fee_type),
+          showIf: (form) => form.enrollment_type !== 'course' && !!form.batch_id && !['Monthly', 'Quarterly'].includes(form.fee_type),
           hint: 'Default Fee uses the course fee set in Courses.',
         },
         {
@@ -163,7 +189,7 @@ export default function StudentsPage() {
             { value: 'Quarterly', label: 'Quarterly' },
             { value: 'Installment', label: 'Installment' },
           ],
-          showIf: (form) => !!form.batch_id,
+          showIf: (form) => form.enrollment_type !== 'course' && !!form.batch_id,
           onValueChange: (value, form) => {
             if (!['Monthly', 'Quarterly'].includes(value)) return;
             const batch = batchMap[String(form.batch_id)];

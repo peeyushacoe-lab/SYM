@@ -10,7 +10,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   const db = getDb();
   await db
     .prepare(
-      `UPDATE academic_events SET title=?, description=?, event_type=?, start_date=?, end_date=?, audience=? WHERE id=?`
+      `UPDATE academic_events SET title=?, description=?, event_type=?, start_date=?, end_date=?, audience=? WHERE id=? AND school_id=?`
     )
     .run(
       data.title,
@@ -19,7 +19,8 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
       data.start_date,
       data.end_date || null,
       data.audience || 'All',
-      params.id
+      params.id,
+      auth.session.schoolId
     );
   return NextResponse.json({ ok: true });
 }
@@ -29,6 +30,6 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  await db.prepare('DELETE FROM academic_events WHERE id = ?').run(params.id);
+  await db.prepare('DELETE FROM academic_events WHERE id = ? AND school_id = ?').run(params.id, auth.session.schoolId);
   return NextResponse.json({ ok: true });
 }

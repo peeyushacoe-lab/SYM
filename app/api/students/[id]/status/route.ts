@@ -11,6 +11,6 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (!['Active', 'Closed'].includes(status)) {
     return NextResponse.json({ error: 'status must be Active or Closed.' }, { status: 400 });
   }
-  await getDb().prepare('UPDATE students SET status = ? WHERE id = ?').run(status, Number(params.id));
+  await getDb().prepare('UPDATE students SET status = ? WHERE id = ? AND school_id = ?').run(status, Number(params.id), auth.session.schoolId);
   return NextResponse.json({ ok: true });
 }

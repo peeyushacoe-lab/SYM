@@ -9,15 +9,15 @@ export async function GET(req: NextRequest) {
   const today = new Date().toISOString().slice(0, 10);
 
   const [pendingLeave, openQueries, followUps, recentNotices] = await Promise.all([
-    db.prepare(`SELECT COUNT(*) as c FROM leave_requests WHERE status = 'Pending'`).get() as Promise<any>,
-    db.prepare(`SELECT COUNT(*) as c FROM queries WHERE status = 'Open'`).get() as Promise<any>,
+    db.prepare(`SELECT COUNT(*) as c FROM leave_requests WHERE status = 'Pending' AND school_id = ?`).get(auth.session.schoolId) as Promise<any>,
+    db.prepare(`SELECT COUNT(*) as c FROM queries WHERE status = 'Open' AND school_id = ?`).get(auth.session.schoolId) as Promise<any>,
     db
       .prepare(
         `SELECT COUNT(*) as c FROM enquiries
-         WHERE follow_up_date IS NOT NULL AND follow_up_date <= ? AND status NOT IN ('Joined', 'Not Interested')`
+         WHERE follow_up_date IS NOT NULL AND follow_up_date <= ? AND status NOT IN ('Joined', 'Not Interested') AND school_id = ?`
       )
-      .get(today) as Promise<any>,
-    db.prepare(`SELECT COUNT(*) as c FROM notices WHERE created_at >= NOW() - INTERVAL '3 days'`).get() as Promise<any>,
+      .get(today, auth.session.schoolId) as Promise<any>,
+    db.prepare(`SELECT COUNT(*) as c FROM notices WHERE created_at >= NOW() - INTERVAL '3 days' AND school_id = ?`).get(auth.session.schoolId) as Promise<any>,
   ]);
 
   const counts = {

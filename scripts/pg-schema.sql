@@ -517,3 +517,153 @@ ALTER TABLE fees ADD COLUMN IF NOT EXISTS fee_item_id INTEGER;
 -- Batch-level monthly fee: lets Add Student auto-fill a per-student Monthly
 -- fee item from the batch instead of the admin retyping it every time.
 ALTER TABLE batches ADD COLUMN IF NOT EXISTS monthly_fee DOUBLE PRECISION DEFAULT 0;
+
+-- ============================================================
+-- Multi-school (multi-tenant) support.
+--
+-- One SYM instance now hosts many schools. A single platform Owner account
+-- (role='superadmin', school_id NULL) creates schools and their admin
+-- logins; every other account belongs to exactly one school via school_id,
+-- and every tenant-data table gets its own school_id column so each query
+-- is a simple "AND school_id = ?" rather than a chain of joins back to a
+-- parent row. All existing data is backfilled into "School #1" below so
+-- nothing already in the database is lost or orphaned.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS schools (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO schools (id, name)
+SELECT 1, 'School #1' WHERE NOT EXISTS (SELECT 1 FROM schools WHERE id = 1);
+-- Keep the SERIAL sequence ahead of the manually-inserted id=1 row above.
+SELECT setval(pg_get_serial_sequence('schools', 'id'), (SELECT COALESCE(MAX(id), 1) FROM schools));
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE students ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE batches ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE enquiries ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE fees ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE notices ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE branches ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE fee_categories ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE sms_templates ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE role_permissions ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE academic_events ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE library_books ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE library_issues ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE inventory_transactions ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE hostel_rooms ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE hostel_allocations ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE transport_vehicles ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE transport_assignments ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE alumni ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE visitor_logs ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE grade_bands ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE attendance ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE exams ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE exam_marks ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE timetable_slots ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE homework ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE lesson_plans ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE teacher_batches ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE student_guardians ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE student_fee_items ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE student_documents ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+ALTER TABLE queries ADD COLUMN IF NOT EXISTS school_id INTEGER REFERENCES schools(id);
+
+-- Backfill: every row that predates multi-school support belongs to School #1.
+UPDATE students SET school_id = 1 WHERE school_id IS NULL;
+UPDATE batches SET school_id = 1 WHERE school_id IS NULL;
+UPDATE staff SET school_id = 1 WHERE school_id IS NULL;
+UPDATE courses SET school_id = 1 WHERE school_id IS NULL;
+UPDATE enquiries SET school_id = 1 WHERE school_id IS NULL;
+UPDATE fees SET school_id = 1 WHERE school_id IS NULL;
+UPDATE expenses SET school_id = 1 WHERE school_id IS NULL;
+UPDATE notices SET school_id = 1 WHERE school_id IS NULL;
+UPDATE branches SET school_id = 1 WHERE school_id IS NULL;
+UPDATE fee_categories SET school_id = 1 WHERE school_id IS NULL;
+UPDATE sms_templates SET school_id = 1 WHERE school_id IS NULL;
+UPDATE role_permissions SET school_id = 1 WHERE school_id IS NULL;
+UPDATE academic_events SET school_id = 1 WHERE school_id IS NULL;
+UPDATE library_books SET school_id = 1 WHERE school_id IS NULL;
+UPDATE library_issues SET school_id = 1 WHERE school_id IS NULL;
+UPDATE inventory_items SET school_id = 1 WHERE school_id IS NULL;
+UPDATE inventory_transactions SET school_id = 1 WHERE school_id IS NULL;
+UPDATE hostel_rooms SET school_id = 1 WHERE school_id IS NULL;
+UPDATE hostel_allocations SET school_id = 1 WHERE school_id IS NULL;
+UPDATE transport_vehicles SET school_id = 1 WHERE school_id IS NULL;
+UPDATE transport_assignments SET school_id = 1 WHERE school_id IS NULL;
+UPDATE alumni SET school_id = 1 WHERE school_id IS NULL;
+UPDATE visitor_logs SET school_id = 1 WHERE school_id IS NULL;
+UPDATE grade_bands SET school_id = 1 WHERE school_id IS NULL;
+UPDATE payments SET school_id = 1 WHERE school_id IS NULL;
+UPDATE attendance SET school_id = 1 WHERE school_id IS NULL;
+UPDATE exams SET school_id = 1 WHERE school_id IS NULL;
+UPDATE exam_marks SET school_id = 1 WHERE school_id IS NULL;
+UPDATE timetable_slots SET school_id = 1 WHERE school_id IS NULL;
+UPDATE leave_requests SET school_id = 1 WHERE school_id IS NULL;
+UPDATE homework SET school_id = 1 WHERE school_id IS NULL;
+UPDATE lesson_plans SET school_id = 1 WHERE school_id IS NULL;
+UPDATE teacher_batches SET school_id = 1 WHERE school_id IS NULL;
+UPDATE student_guardians SET school_id = 1 WHERE school_id IS NULL;
+UPDATE student_fee_items SET school_id = 1 WHERE school_id IS NULL;
+UPDATE student_documents SET school_id = 1 WHERE school_id IS NULL;
+UPDATE payroll_runs SET school_id = 1 WHERE school_id IS NULL;
+UPDATE queries SET school_id = 1 WHERE school_id IS NULL;
+-- Every existing user becomes School #1 staff EXCEPT the seeded superadmin,
+-- who becomes the platform Owner (school_id stays NULL).
+UPDATE users SET school_id = 1 WHERE school_id IS NULL AND role != 'superadmin';
+
+-- These three UNIQUE constraints were written back when there was only ever
+-- one school; unscoped, they'd wrongly stop two different schools from both
+-- having a course called "JEE-MAIN", a "Default Fee" category, or a
+-- 'fee_reminder' SMS template key. Re-scope them to (school_id, <col>).
+ALTER TABLE courses DROP CONSTRAINT IF EXISTS courses_name_key;
+ALTER TABLE courses ADD CONSTRAINT courses_school_name_key UNIQUE (school_id, name);
+ALTER TABLE fee_categories DROP CONSTRAINT IF EXISTS fee_categories_name_key;
+ALTER TABLE fee_categories ADD CONSTRAINT fee_categories_school_name_key UNIQUE (school_id, name);
+ALTER TABLE sms_templates DROP CONSTRAINT IF EXISTS sms_templates_key_key;
+ALTER TABLE sms_templates ADD CONSTRAINT sms_templates_school_key_key UNIQUE (school_id, key);
+-- role_permissions' constraint has the same problem (two schools couldn't
+-- both have a 'teacher'/'attendance' row) — re-scope the same way.
+ALTER TABLE role_permissions DROP CONSTRAINT IF EXISTS role_permissions_role_module_key_key;
+ALTER TABLE role_permissions ADD CONSTRAINT role_permissions_school_role_module_key UNIQUE (school_id, role, module_key);
+
+-- ============================================================
+-- Subjects master list, staff type/login, and course-based exams.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS subjects (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  school_id INTEGER REFERENCES schools(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (school_id, name)
+);
+
+-- Distinguishes teaching staff from non-teaching administrators. An
+-- Administrator-type staff member gets their own login (role='staff_admin')
+-- scoped to marking staff attendance only — see /api/staff and the
+-- staff_admin role in lib/auth.ts.
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS staff_type TEXT NOT NULL DEFAULT 'Instructor';
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS email TEXT;
+
+-- Exams used to require a batch. Students can now enrol via a course
+-- instead of a batch (see students.course), so an exam must be able to
+-- target either one. At least one of batch_id/course is enforced in the
+-- API layer (app/api/exams/route.ts), not here, since a plain CHECK can't
+-- easily express "at least one of two nullable columns" alongside the
+-- existing NOT NULL default for pre-existing rows.
+ALTER TABLE exams ALTER COLUMN batch_id DROP NOT NULL;
+ALTER TABLE exams ADD COLUMN IF NOT EXISTS course TEXT;

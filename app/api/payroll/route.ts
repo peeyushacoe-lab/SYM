@@ -12,16 +12,17 @@ export async function GET(req: NextRequest) {
         .prepare(
           `SELECT p.*, s.name as staff_name, s.designation as staff_designation
            FROM payroll_runs p JOIN staff s ON s.id = p.staff_id
-           WHERE p.month = ? ORDER BY s.name ASC`
+           WHERE p.school_id = ? AND p.month = ? ORDER BY s.name ASC`
         )
-        .all(month)
+        .all(auth.session.schoolId, month)
     : await db
         .prepare(
           `SELECT p.*, s.name as staff_name, s.designation as staff_designation
            FROM payroll_runs p JOIN staff s ON s.id = p.staff_id
+           WHERE p.school_id = ?
            ORDER BY p.month DESC, s.name ASC`
         )
-        .all();
+        .all(auth.session.schoolId);
   return NextResponse.json({ items });
 }
 
@@ -33,9 +34,12 @@ export async function POST(req: NextRequest) {
   if (!data.month) return NextResponse.json({ error: 'Month is required.' }, { status: 400 });
   const db = getDb();
 
+  const staff = await db.prepare('SELECT id FROM staff WHERE id = ? AND school_id = ?').get(data.staff_id, auth.session.schoolId);
+  if (!staff) return NextResponse.json({ error: 'Staff not found.' }, { status: 404 });
+
   const existing = await db
-    .prepare('SELECT id FROM payroll_runs WHERE staff_id = ? AND month = ?')
-    .get(data.staff_id, data.month);
+    .prepare('SELECT id FROM payroll_runs WHERE staff_id = ? AND month = ? AND school_id = ?')
+    .get(data.staff_id, data.month, auth.session.schoolId);
   if (existing) {
     return NextResponse.json({ error: 'A payroll run already exists for this staff member and month.' }, { status: 400 });
   }
@@ -47,10 +51,10 @@ export async function POST(req: NextRequest) {
 
   const result = await db
     .prepare(
-      `INSERT INTO payroll_runs (staff_id, month, basic_salary, allowances, deductions, net_salary, remarks)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO payroll_runs (staff_id, month, basic_salary, allowances, deductions, net_salary, remarks, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(data.staff_id, data.month, basic, allowances, deductions, net, data.remarks || null);
+    .run(data.staff_id, data.month, basic, allowances, deductions, net, data.remarks || null, auth.session.schoolId);
 
   return NextResponse.json({ id: result.lastInsertRowid });
 }

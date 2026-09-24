@@ -13,6 +13,7 @@ export async function GET() {
   const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const mmdd = today.slice(5); // MM-DD for birthdays
 
+  const schoolId = auth.session.schoolId;
   const one = async (sql: string, ...params: any[]) =>
     ((await db.prepare(sql).get(...params)) as any) || {};
 
@@ -24,28 +25,28 @@ export async function GET() {
     studAttToday, studTotal, staffAttToday,
     attendanceSummary,
   ] = await Promise.all([
-    one(`SELECT COUNT(*) c FROM students WHERE COALESCE(status,'Active') = 'Active'`),
-    one(`SELECT COUNT(*) c FROM students WHERE status = 'Closed'`),
-    one('SELECT COUNT(*) c FROM batches'),
-    one('SELECT COUNT(*) c FROM staff'),
-    one('SELECT COUNT(*) c FROM enquiries'),
-    one(`SELECT COUNT(*) c FROM enquiries WHERE status NOT IN ('Joined','Not Interested','Lost')`),
-    one(`SELECT COUNT(*) c FROM enquiries WHERE status IN ('Joined','Not Interested','Lost')`),
-    one('SELECT COALESCE(SUM(amount_paid),0) t FROM fees WHERE payment_date = ?', today),
-    one('SELECT COALESCE(SUM(amount_paid),0) t FROM fees WHERE payment_date LIKE ?', `${monthStr}%`),
-    one('SELECT COALESCE(SUM(amount_paid),0) t FROM fees'),
-    one('SELECT COALESCE(SUM(amount),0) t FROM expenses WHERE expense_date = ?', today),
-    one('SELECT COALESCE(SUM(amount),0) t FROM expenses WHERE expense_date LIKE ?', `${monthStr}%`),
-    one('SELECT COALESCE(SUM(amount),0) t FROM expenses'),
-    one(`SELECT COUNT(DISTINCT student_id) c, COALESCE(SUM(remaining_due),0) t FROM fees WHERE remaining_due > 0 AND fee_item_id IS NULL`),
-    one('SELECT COUNT(*) c FROM exams'),
-    db.prepare(`SELECT id, name, dob, mobile FROM students WHERE dob IS NOT NULL AND substr(dob, 6, 5) = ? AND COALESCE(status,'Active') = 'Active'`).all(mmdd),
-    one('SELECT COUNT(DISTINCT student_id) c FROM attendance WHERE date = ?', today),
-    one(`SELECT COUNT(*) c FROM students WHERE COALESCE(status,'Active') = 'Active'`),
-    one('SELECT COUNT(DISTINCT staff_id) c FROM staff_attendance WHERE date = ?', today),
+    one(`SELECT COUNT(*) c FROM students WHERE school_id = ? AND COALESCE(status,'Active') = 'Active'`, schoolId),
+    one(`SELECT COUNT(*) c FROM students WHERE school_id = ? AND status = 'Closed'`, schoolId),
+    one('SELECT COUNT(*) c FROM batches WHERE school_id = ?', schoolId),
+    one('SELECT COUNT(*) c FROM staff WHERE school_id = ?', schoolId),
+    one('SELECT COUNT(*) c FROM enquiries WHERE school_id = ?', schoolId),
+    one(`SELECT COUNT(*) c FROM enquiries WHERE school_id = ? AND status NOT IN ('Joined','Not Interested','Lost')`, schoolId),
+    one(`SELECT COUNT(*) c FROM enquiries WHERE school_id = ? AND status IN ('Joined','Not Interested','Lost')`, schoolId),
+    one('SELECT COALESCE(SUM(amount_paid),0) t FROM fees WHERE school_id = ? AND payment_date = ?', schoolId, today),
+    one('SELECT COALESCE(SUM(amount_paid),0) t FROM fees WHERE school_id = ? AND payment_date LIKE ?', schoolId, `${monthStr}%`),
+    one('SELECT COALESCE(SUM(amount_paid),0) t FROM fees WHERE school_id = ?', schoolId),
+    one('SELECT COALESCE(SUM(amount),0) t FROM expenses WHERE school_id = ? AND expense_date = ?', schoolId, today),
+    one('SELECT COALESCE(SUM(amount),0) t FROM expenses WHERE school_id = ? AND expense_date LIKE ?', schoolId, `${monthStr}%`),
+    one('SELECT COALESCE(SUM(amount),0) t FROM expenses WHERE school_id = ?', schoolId),
+    one(`SELECT COUNT(DISTINCT student_id) c, COALESCE(SUM(remaining_due),0) t FROM fees WHERE school_id = ? AND remaining_due > 0 AND fee_item_id IS NULL`, schoolId),
+    one('SELECT COUNT(*) c FROM exams WHERE school_id = ?', schoolId),
+    db.prepare(`SELECT id, name, dob, mobile FROM students WHERE school_id = ? AND dob IS NOT NULL AND substr(dob, 6, 5) = ? AND COALESCE(status,'Active') = 'Active'`).all(schoolId, mmdd),
+    one('SELECT COUNT(DISTINCT student_id) c FROM attendance WHERE school_id = ? AND date = ?', schoolId, today),
+    one(`SELECT COUNT(*) c FROM students WHERE school_id = ? AND COALESCE(status,'Active') = 'Active'`, schoolId),
+    one('SELECT COUNT(DISTINCT staff_id) c FROM staff_attendance WHERE school_id = ? AND date = ?', schoolId, today),
     db.prepare(
-      `SELECT date, status, COUNT(*) c FROM attendance WHERE date LIKE ? GROUP BY date, status ORDER BY date`
-    ).all(`${monthStr}%`),
+      `SELECT date, status, COUNT(*) c FROM attendance WHERE school_id = ? AND date LIKE ? GROUP BY date, status ORDER BY date`
+    ).all(schoolId, `${monthStr}%`),
   ]);
 
   // Live arrears from active fee items (e.g. a late joiner owing months
@@ -57,9 +58,9 @@ export async function GET() {
        FROM student_fee_items sfi
        JOIN students s ON sfi.student_id = s.id
        LEFT JOIN batches b ON s.batch_id = b.id
-       WHERE sfi.active = 1`
+       WHERE sfi.school_id = ? AND sfi.active = 1`
     )
-    .all()) as any[];
+    .all(schoolId)) as any[];
   let itemDueTotal = 0;
   let itemDueStudents = 0;
   for (const row of activeItems) {
@@ -75,19 +76,19 @@ export async function GET() {
     }
   }
 
-  const recentEnquiries = await db.prepare('SELECT * FROM enquiries ORDER BY created_at DESC LIMIT 5').all();
+  const recentEnquiries = await db.prepare('SELECT * FROM enquiries WHERE school_id = ? ORDER BY created_at DESC LIMIT 5').all(schoolId);
   const incomeVsExpense = await db
     .prepare(
       `SELECT left(payment_date, 7) as month, SUM(amount_paid) as total
-       FROM fees WHERE payment_date IS NOT NULL GROUP BY month ORDER BY month DESC LIMIT 6`
+       FROM fees WHERE school_id = ? AND payment_date IS NOT NULL GROUP BY month ORDER BY month DESC LIMIT 6`
     )
-    .all();
+    .all(schoolId);
   const expenseByMonth = await db
     .prepare(
       `SELECT left(expense_date, 7) as month, SUM(amount) as total
-       FROM expenses WHERE expense_date IS NOT NULL GROUP BY month ORDER BY month DESC LIMIT 6`
+       FROM expenses WHERE school_id = ? AND expense_date IS NOT NULL GROUP BY month ORDER BY month DESC LIMIT 6`
     )
-    .all();
+    .all(schoolId);
 
   return NextResponse.json({
     // Tufee-style overview

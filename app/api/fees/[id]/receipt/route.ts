@@ -13,9 +13,9 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
     .prepare(
       `SELECT f.*, s.name as student_name, s.mobile, b.name as batch_name
        FROM fees f LEFT JOIN students s ON f.student_id = s.id
-       LEFT JOIN batches b ON s.batch_id = b.id WHERE f.id = ?`
+       LEFT JOIN batches b ON s.batch_id = b.id WHERE f.id = ? AND f.school_id = ?`
     )
-    .get(params.id)) as any;
+    .get(params.id, auth.session.schoolId)) as any;
   if (!row) return NextResponse.json({ error: 'Fee record not found.' }, { status: 404 });
 
   // Students can only fetch their own receipts; guardians only their children's.

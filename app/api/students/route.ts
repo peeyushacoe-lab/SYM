@@ -10,8 +10,8 @@ export async function GET(req: NextRequest) {
   const batchId = req.nextUrl.searchParams.get('batch_id') || '';
   const course = req.nextUrl.searchParams.get('course') || '';
   const db = getDb();
-  let query = `SELECT s.*, b.name as batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE 1=1`;
-  const params: any[] = [];
+  let query = `SELECT s.*, b.name as batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE s.school_id = ?`;
+  const params: any[] = [auth.session.schoolId];
   if (search) {
     query += ` AND (s.name ILIKE ? OR s.mobile ILIKE ? OR s.roll_number ILIKE ? OR s.registration_number ILIKE ? OR s.course ILIKE ?)`;
     params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
@@ -38,18 +38,22 @@ export async function POST(req: NextRequest) {
   if (!data.name || !data.mobile) {
     return NextResponse.json({ error: 'Name and mobile are required.' }, { status: 400 });
   }
+  if (!data.batch_id && !data.course) {
+    return NextResponse.json({ error: 'Select either a batch or a course.' }, { status: 400 });
+  }
 
   const db = getDb();
   const result = await db
     .prepare(
       `INSERT INTO students (name, father_name, mother_name, mobile, alt_mobile, address, dob, gender,
         qualification, course, batch_id, admission_date, roll_number, registration_number,
-        aadhaar, photo, email, remarks, fee_category, fee_type, fee_amount)
+        aadhaar, photo, email, remarks, fee_category, fee_type, fee_amount, school_id)
        VALUES (@name, @father_name, @mother_name, @mobile, @alt_mobile, @address, @dob, @gender,
         @qualification, @course, @batch_id, @admission_date, @roll_number, @registration_number,
-        @aadhaar, @photo, @email, @remarks, @fee_category, @fee_type, @fee_amount)`
+        @aadhaar, @photo, @email, @remarks, @fee_category, @fee_type, @fee_amount, @school_id)`
     )
     .run({
+      school_id: auth.session.schoolId,
       name: data.name,
       father_name: data.father_name || null,
       mother_name: data.mother_name || null,
@@ -86,13 +90,13 @@ export async function POST(req: NextRequest) {
     const backdate = data.backdate_fees === undefined || Number(data.backdate_fees) ? true : false;
     let fromDate = data.admission_date || new Date().toISOString().slice(0, 10);
     if (backdate) {
-      const batch = (await db.prepare('SELECT start_date FROM batches WHERE id = ?').get(data.batch_id)) as any;
+      const batch = (await db.prepare('SELECT start_date FROM batches WHERE id = ? AND school_id = ?').get(data.batch_id, auth.session.schoolId)) as any;
       if (batch?.start_date) fromDate = batch.start_date;
     }
     await db
       .prepare(
-        `INSERT INTO student_fee_items (student_id, category, fee_type, from_date, amount, partial_supported)
-         VALUES (@student_id, @category, @fee_type, @from_date, @amount, @partial_supported)`
+        `INSERT INTO student_fee_items (student_id, category, fee_type, from_date, amount, partial_supported, school_id)
+         VALUES (@student_id, @category, @fee_type, @from_date, @amount, @partial_supported, @school_id)`
       )
       .run({
         student_id: studentId,
@@ -101,6 +105,7 @@ export async function POST(req: NextRequest) {
         from_date: fromDate,
         amount: Number(data.batch_monthly_fee),
         partial_supported: 1,
+        school_id: auth.session.schoolId,
       });
   }
 

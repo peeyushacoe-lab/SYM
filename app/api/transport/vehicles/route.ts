@@ -9,9 +9,9 @@ export async function GET() {
   const items = await db
     .prepare(
       `SELECT v.*, (SELECT COUNT(*) FROM transport_assignments a WHERE a.vehicle_id = v.id AND a.status = 'Active') as assigned_count
-       FROM transport_vehicles v ORDER BY vehicle_number ASC`
+       FROM transport_vehicles v WHERE v.school_id = ? ORDER BY vehicle_number ASC`
     )
-    .all();
+    .all(auth.session.schoolId);
   return NextResponse.json({ items });
 }
 
@@ -23,9 +23,9 @@ export async function POST(req: NextRequest) {
   const db = getDb();
   const result = await db
     .prepare(
-      `INSERT INTO transport_vehicles (vehicle_number, driver_name, driver_mobile, capacity, route_name, remarks)
-       VALUES (?, ?, ?, ?, ?, ?)`
+      `INSERT INTO transport_vehicles (vehicle_number, driver_name, driver_mobile, capacity, route_name, remarks, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(data.vehicle_number, data.driver_name || null, data.driver_mobile || null, Number(data.capacity) || 1, data.route_name || null, data.remarks || null);
+    .run(data.vehicle_number, data.driver_name || null, data.driver_mobile || null, Number(data.capacity) || 1, data.route_name || null, data.remarks || null, auth.session.schoolId);
   return NextResponse.json({ id: result.lastInsertRowid });
 }

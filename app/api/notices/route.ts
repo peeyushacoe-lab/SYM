@@ -9,14 +9,14 @@ export async function GET() {
   const db = getDb();
 
   if (session.role === 'management') {
-    const items = await db.prepare('SELECT * FROM notices ORDER BY created_at DESC').all();
+    const items = await db.prepare('SELECT * FROM notices WHERE school_id = ? ORDER BY created_at DESC').all(session.schoolId);
     return NextResponse.json({ items });
   }
 
   if (session.role === 'teacher') {
     const items = await db
-      .prepare("SELECT * FROM notices WHERE audience IN ('All','Teachers') ORDER BY created_at DESC LIMIT 30")
-      .all();
+      .prepare("SELECT * FROM notices WHERE school_id = ? AND audience IN ('All','Teachers') ORDER BY created_at DESC LIMIT 30")
+      .all(session.schoolId);
     return NextResponse.json({ items });
   }
 
@@ -24,17 +24,17 @@ export async function GET() {
     const student = (await db.prepare('SELECT batch_id FROM students WHERE user_id = ?').get(session.id)) as any;
     const items = await db
       .prepare(
-        `SELECT * FROM notices WHERE audience IN ('All','Students') OR (audience='Batch' AND batch_id = ?)
+        `SELECT * FROM notices WHERE school_id = ? AND (audience IN ('All','Students') OR (audience='Batch' AND batch_id = ?))
          ORDER BY created_at DESC LIMIT 30`
       )
-      .all(student?.batch_id ?? -1);
+      .all(session.schoolId, student?.batch_id ?? -1);
     return NextResponse.json({ items });
   }
 
   if (session.role === 'guardian') {
     const items = await db
-      .prepare("SELECT * FROM notices WHERE audience IN ('All','Guardians') ORDER BY created_at DESC LIMIT 30")
-      .all();
+      .prepare("SELECT * FROM notices WHERE school_id = ? AND audience IN ('All','Guardians') ORDER BY created_at DESC LIMIT 30")
+      .all(session.schoolId);
     return NextResponse.json({ items });
   }
 
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   if (!data.title) return NextResponse.json({ error: 'Title is required.' }, { status: 400 });
   const db = getDb();
   const result = await db
-    .prepare('INSERT INTO notices (title, body, audience, batch_id, created_by) VALUES (?, ?, ?, ?, ?)')
-    .run(data.title, data.body || null, data.audience || 'All', data.batch_id || null, auth.session.id);
+    .prepare('INSERT INTO notices (title, body, audience, batch_id, created_by, school_id) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(data.title, data.body || null, data.audience || 'All', data.batch_id || null, auth.session.id, auth.session.schoolId);
   return NextResponse.json({ id: result.lastInsertRowid });
 }

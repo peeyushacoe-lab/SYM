@@ -9,11 +9,11 @@ export async function GET(req: NextRequest) {
   const db = getDb();
   const query = search
     ? `SELECT s.*, b.name as batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id
-       WHERE s.name ILIKE ? OR s.course ILIKE ? OR s.batch_id IN (SELECT id FROM batches WHERE name ILIKE ?)
+       WHERE s.school_id = ? AND (s.name ILIKE ? OR s.course ILIKE ? OR s.batch_id IN (SELECT id FROM batches WHERE name ILIKE ?))
        ORDER BY s.admission_date DESC`
-    : `SELECT s.*, b.name as batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id ORDER BY s.admission_date DESC`;
+    : `SELECT s.*, b.name as batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE s.school_id = ? ORDER BY s.admission_date DESC`;
   const items = search
-    ? await db.prepare(query).all(`%${search}%`, `%${search}%`, `%${search}%`)
-    : await db.prepare(query).all();
+    ? await db.prepare(query).all(auth.session.schoolId, `%${search}%`, `%${search}%`, `%${search}%`)
+    : await db.prepare(query).all(auth.session.schoolId);
   return NextResponse.json({ items });
 }

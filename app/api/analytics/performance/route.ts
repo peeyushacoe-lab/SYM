@@ -21,9 +21,11 @@ export async function GET() {
     JOIN exams e ON m.exam_id = e.id
     JOIN students s ON m.student_id = s.id
     LEFT JOIN batches b ON s.batch_id = b.id
-    WHERE m.marks IS NOT NULL AND e.max_marks > 0
+    WHERE m.marks IS NOT NULL AND e.max_marks > 0 AND m.school_id = ?
     ${teacherFilter}
   `;
+  const schoolParam = [auth.session.schoolId];
+  const allParams = [...schoolParam, ...teacherParams];
 
   const overallRow = await db
     .prepare(
@@ -33,7 +35,7 @@ export async function GET() {
         SUM(CASE WHEN m.marks / e.max_marks * 100 >= ${PASS_PCT} THEN 1 ELSE 0 END) as pass_count
       ${baseFrom}`
     )
-    .get(...teacherParams) as any;
+    .get(...allParams) as any;
 
   const overall = {
     gradedCount: Number(overallRow?.graded_count || 0),
@@ -53,7 +55,7 @@ export async function GET() {
       GROUP BY b.id, b.name
       ORDER BY avg_pct DESC`
     )
-    .all(...teacherParams);
+    .all(...allParams);
 
   const subjectWise = await db
     .prepare(
@@ -64,7 +66,7 @@ export async function GET() {
       GROUP BY e.subject
       ORDER BY avg_pct DESC`
     )
-    .all(...teacherParams);
+    .all(...allParams);
 
   const examTrend = await db
     .prepare(
@@ -76,7 +78,7 @@ export async function GET() {
       ORDER BY e.exam_date DESC NULLS LAST, e.id DESC
       LIMIT 10`
     )
-    .all(...teacherParams);
+    .all(...allParams);
 
   const studentWise = await db
     .prepare(
@@ -87,7 +89,7 @@ export async function GET() {
       GROUP BY s.id, s.name, b.name
       HAVING COUNT(*) >= 1`
     )
-    .all(...teacherParams);
+    .all(...allParams);
 
   const ranked = (studentWise as any[])
     .map((s) => ({ ...s, avg_pct: s.avg_pct !== null ? Math.round(Number(s.avg_pct)) : null }))

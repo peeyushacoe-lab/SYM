@@ -9,9 +9,10 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   const data = await req.json();
   const db = getDb();
   await db.prepare(
-    'UPDATE batches SET name=@name, course=@course, start_date=@start_date, end_date=@end_date, timing=@timing, capacity=@capacity, remarks=@remarks, advance_fee=@advance_fee, monthly_fee=@monthly_fee WHERE id=@id'
+    'UPDATE batches SET name=@name, course=@course, start_date=@start_date, end_date=@end_date, timing=@timing, capacity=@capacity, remarks=@remarks, advance_fee=@advance_fee, monthly_fee=@monthly_fee WHERE id=@id AND school_id=@school_id'
   ).run({
     id: params.id,
+    school_id: auth.session.schoolId,
     name: data.name,
     course: data.course || null,
     start_date: data.start_date || null,
@@ -30,6 +31,10 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
+
+  const target = await db.prepare('SELECT id FROM batches WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId);
+  if (!target) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+
   // Every other table with a NOT NULL, non-cascading FK to batches(id) must
   // be cleared first, or Postgres throws a raw FK-violation 500 the moment
   // the batch has any attendance, exams, timetable, homework, or lesson plans.

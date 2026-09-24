@@ -9,28 +9,28 @@ export async function GET() {
   const db = getDb();
 
   if (session.role === 'management') {
-    const items = await db.prepare('SELECT * FROM academic_events ORDER BY start_date ASC').all();
+    const items = await db.prepare('SELECT * FROM academic_events WHERE school_id = ? ORDER BY start_date ASC').all(session.schoolId);
     return NextResponse.json({ items });
   }
 
   if (session.role === 'teacher') {
     const items = await db
-      .prepare("SELECT * FROM academic_events WHERE audience IN ('All','Teachers') ORDER BY start_date ASC")
-      .all();
+      .prepare("SELECT * FROM academic_events WHERE school_id = ? AND audience IN ('All','Teachers') ORDER BY start_date ASC")
+      .all(session.schoolId);
     return NextResponse.json({ items });
   }
 
   if (session.role === 'student') {
     const items = await db
-      .prepare("SELECT * FROM academic_events WHERE audience IN ('All','Students') ORDER BY start_date ASC")
-      .all();
+      .prepare("SELECT * FROM academic_events WHERE school_id = ? AND audience IN ('All','Students') ORDER BY start_date ASC")
+      .all(session.schoolId);
     return NextResponse.json({ items });
   }
 
   if (session.role === 'guardian') {
     const items = await db
-      .prepare("SELECT * FROM academic_events WHERE audience IN ('All','Guardians') ORDER BY start_date ASC")
-      .all();
+      .prepare("SELECT * FROM academic_events WHERE school_id = ? AND audience IN ('All','Guardians') ORDER BY start_date ASC")
+      .all(session.schoolId);
     return NextResponse.json({ items });
   }
 
@@ -46,8 +46,8 @@ export async function POST(req: NextRequest) {
   const db = getDb();
   const result = await db
     .prepare(
-      `INSERT INTO academic_events (title, description, event_type, start_date, end_date, audience, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO academic_events (title, description, event_type, start_date, end_date, audience, created_by, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       data.title,
@@ -56,7 +56,8 @@ export async function POST(req: NextRequest) {
       data.start_date,
       data.end_date || null,
       data.audience || 'All',
-      auth.session.id
+      auth.session.id,
+      auth.session.schoolId
     );
   return NextResponse.json({ id: result.lastInsertRowid });
 }

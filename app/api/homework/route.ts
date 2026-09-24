@@ -15,40 +15,40 @@ export async function GET(req: NextRequest) {
 
   if (session.role === 'management') {
     const items = batchId
-      ? await db.prepare(`${LIST_SQL} WHERE h.batch_id = ? ORDER BY h.due_date DESC, h.created_at DESC`).all(batchId)
-      : await db.prepare(`${LIST_SQL} ORDER BY h.due_date DESC, h.created_at DESC`).all();
+      ? await db.prepare(`${LIST_SQL} WHERE h.school_id = ? AND h.batch_id = ? ORDER BY h.due_date DESC, h.created_at DESC`).all(session.schoolId, batchId)
+      : await db.prepare(`${LIST_SQL} WHERE h.school_id = ? ORDER BY h.due_date DESC, h.created_at DESC`).all(session.schoolId);
     return NextResponse.json({ items });
   }
 
   if (session.role === 'teacher') {
     const items = await db
       .prepare(
-        `${LIST_SQL} WHERE h.batch_id IN (SELECT batch_id FROM teacher_batches WHERE teacher_user_id = ?)
+        `${LIST_SQL} WHERE h.school_id = ? AND h.batch_id IN (SELECT batch_id FROM teacher_batches WHERE teacher_user_id = ?)
          ${batchId ? 'AND h.batch_id = ?' : ''}
          ORDER BY h.due_date DESC, h.created_at DESC`
       )
-      .all(...(batchId ? [session.id, batchId] : [session.id]));
+      .all(...(batchId ? [session.schoolId, session.id, batchId] : [session.schoolId, session.id]));
     return NextResponse.json({ items });
   }
 
   if (session.role === 'student') {
     const student = (await db.prepare('SELECT batch_id FROM students WHERE user_id = ?').get(session.id)) as any;
     const items = await db
-      .prepare(`${LIST_SQL} WHERE h.batch_id = ? ORDER BY h.due_date DESC, h.created_at DESC`)
-      .all(student?.batch_id ?? -1);
+      .prepare(`${LIST_SQL} WHERE h.school_id = ? AND h.batch_id = ? ORDER BY h.due_date DESC, h.created_at DESC`)
+      .all(session.schoolId, student?.batch_id ?? -1);
     return NextResponse.json({ items });
   }
 
   if (session.role === 'guardian') {
     const items = await db
       .prepare(
-        `${LIST_SQL} WHERE h.batch_id IN (
+        `${LIST_SQL} WHERE h.school_id = ? AND h.batch_id IN (
            SELECT s.batch_id FROM students s JOIN student_guardians sg ON sg.student_id = s.id
            WHERE sg.guardian_user_id = ?
          ) ${batchId ? 'AND h.batch_id = ?' : ''}
          ORDER BY h.due_date DESC, h.created_at DESC`
       )
-      .all(...(batchId ? [session.id, batchId] : [session.id]));
+      .all(...(batchId ? [session.schoolId, session.id, batchId] : [session.schoolId, session.id]));
     return NextResponse.json({ items });
   }
 
@@ -73,12 +73,12 @@ export async function POST(req: NextRequest) {
 
   const result = await db
     .prepare(
-      `INSERT INTO homework (batch_id, subject, title, description, due_date, attachment_name, attachment_data_url, created_by)
-       VALUES (?,?,?,?,?,?,?,?)`
+      `INSERT INTO homework (batch_id, subject, title, description, due_date, attachment_name, attachment_data_url, created_by, school_id)
+       VALUES (?,?,?,?,?,?,?,?,?)`
     )
     .run(
       data.batch_id, data.subject || null, data.title, data.description || null, data.due_date || null,
-      data.attachment_name || null, data.attachment_data_url || null, auth.session.id
+      data.attachment_name || null, data.attachment_data_url || null, auth.session.id, auth.session.schoolId
     );
   return NextResponse.json({ id: result.lastInsertRowid });
 }

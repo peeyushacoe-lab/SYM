@@ -10,7 +10,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if ('error' in auth) return auth.error;
   const db = getDb();
 
-  const issue = (await db.prepare('SELECT * FROM library_issues WHERE id = ?').get(params.id)) as any;
+  const issue = (await db.prepare('SELECT * FROM library_issues WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId)) as any;
   if (!issue) return NextResponse.json({ error: 'Issue record not found.' }, { status: 404 });
   if (issue.status === 'Returned') {
     return NextResponse.json({ error: 'This book has already been returned.' }, { status: 400 });

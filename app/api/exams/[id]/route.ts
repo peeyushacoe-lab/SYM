@@ -8,10 +8,10 @@ async function authorize(id: string) {
   if ('error' in auth) return auth;
   const db = getDb();
   const exam = (await db
-    .prepare('SELECT e.*, b.name as batch_name FROM exams e LEFT JOIN batches b ON e.batch_id = b.id WHERE e.id = ?')
-    .get(id)) as any;
+    .prepare('SELECT e.*, b.name as batch_name FROM exams e LEFT JOIN batches b ON e.batch_id = b.id WHERE e.id = ? AND e.school_id = ?')
+    .get(id, auth.session.schoolId)) as any;
   if (!exam) return { error: NextResponse.json({ error: 'Exam not found.' }, { status: 404 }) };
-  if (auth.session.role === 'teacher' && !(await teacherOwnsBatch(auth.session.id, exam.batch_id))) {
+  if (exam.batch_id && auth.session.role === 'teacher' && !(await teacherOwnsBatch(auth.session.id, exam.batch_id))) {
     return { error: NextResponse.json({ error: 'Not authorized.' }, { status: 403 }) };
   }
   return { session: auth.session, exam, db };
@@ -22,15 +22,27 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const result = await authorize(params.id);
   if ('error' in result) return result.error;
   const { exam, db } = result;
-  const students = await db
-    .prepare(
-      `SELECT s.id, s.name, s.roll_number, m.marks, m.remarks
-       FROM students s
-       LEFT JOIN exam_marks m ON m.student_id = s.id AND m.exam_id = ?
-       WHERE s.batch_id = ?
-       ORDER BY NULLIF(regexp_replace(s.roll_number, '[^0-9]', '', 'g'), '')::int NULLS LAST, s.name`
-    )
-    .all(exam.id, exam.batch_id);
+  // Batch exam -> students in that batch. Course exam (no batch_id) ->
+  // every student enrolled via that course text instead.
+  const students = exam.batch_id
+    ? await db
+        .prepare(
+          `SELECT s.id, s.name, s.roll_number, m.marks, m.remarks
+           FROM students s
+           LEFT JOIN exam_marks m ON m.student_id = s.id AND m.exam_id = ?
+           WHERE s.batch_id = ?
+           ORDER BY NULLIF(regexp_replace(s.roll_number, '[^0-9]', '', 'g'), '')::int NULLS LAST, s.name`
+        )
+        .all(exam.id, exam.batch_id)
+    : await db
+        .prepare(
+          `SELECT s.id, s.name, s.roll_number, m.marks, m.remarks
+           FROM students s
+           LEFT JOIN exam_marks m ON m.student_id = s.id AND m.exam_id = ?
+           WHERE s.course = ? AND s.school_id = ?
+           ORDER BY NULLIF(regexp_replace(s.roll_number, '[^0-9]', '', 'g'), '')::int NULLS LAST, s.name`
+        )
+        .all(exam.id, exam.course, exam.school_id);
   return NextResponse.json({ exam, students });
 }
 

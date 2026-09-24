@@ -18,7 +18,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   const data = await req.json();
   const db = getDb();
 
-  const existing = (await db.prepare('SELECT * FROM homework WHERE id = ?').get(params.id)) as any;
+  const existing = (await db.prepare('SELECT * FROM homework WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId)) as any;
   if (!existing) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
   if (!(await canModify(auth.session.role, auth.session.id, existing.batch_id, db))) {
     return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
@@ -44,7 +44,7 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const params = await props.params;
   const db = getDb();
 
-  const existing = (await db.prepare('SELECT * FROM homework WHERE id = ?').get(params.id)) as any;
+  const existing = (await db.prepare('SELECT * FROM homework WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId)) as any;
   if (!existing) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
   if (!(await canModify(auth.session.role, auth.session.id, existing.batch_id, db))) {
     return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });

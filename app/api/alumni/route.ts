@@ -10,10 +10,10 @@ export async function GET(req: NextRequest) {
   const items = search
     ? await db
         .prepare(
-          'SELECT * FROM alumni WHERE name ILIKE ? OR course ILIKE ? OR current_organization ILIKE ? ORDER BY graduation_year DESC, name'
+          'SELECT * FROM alumni WHERE school_id = ? AND (name ILIKE ? OR course ILIKE ? OR current_organization ILIKE ?) ORDER BY graduation_year DESC, name'
         )
-        .all(`%${search}%`, `%${search}%`, `%${search}%`)
-    : await db.prepare('SELECT * FROM alumni ORDER BY graduation_year DESC, name').all();
+        .all(auth.session.schoolId, `%${search}%`, `%${search}%`, `%${search}%`)
+    : await db.prepare('SELECT * FROM alumni WHERE school_id = ? ORDER BY graduation_year DESC, name').all(auth.session.schoolId);
   return NextResponse.json({ items });
 }
 
@@ -25,8 +25,8 @@ export async function POST(req: NextRequest) {
   const db = getDb();
   const result = await db
     .prepare(
-      `INSERT INTO alumni (student_id, name, course, graduation_year, mobile, email, current_occupation, current_organization, address, remarks)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO alumni (student_id, name, course, graduation_year, mobile, email, current_occupation, current_organization, address, remarks, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       data.student_id || null,
@@ -38,7 +38,8 @@ export async function POST(req: NextRequest) {
       data.current_occupation || null,
       data.current_organization || null,
       data.address || null,
-      data.remarks || null
+      data.remarks || null,
+      auth.session.schoolId
     );
   return NextResponse.json({ id: result.lastInsertRowid });
 }

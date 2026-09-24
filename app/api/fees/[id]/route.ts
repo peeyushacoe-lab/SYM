@@ -13,7 +13,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   // would come through as undefined and silently wipe out any discount that
   // was applied when this row was created via the arrears-collection flow —
   // preserve the existing value unless the caller explicitly sends a new one.
-  const existing = (await db.prepare('SELECT discount FROM fees WHERE id = ?').get(params.id)) as any;
+  const existing = (await db.prepare('SELECT discount FROM fees WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId)) as any;
   if (!existing) return NextResponse.json({ error: 'Fee record not found.' }, { status: 404 });
 
   const courseFee = Number(data.course_fee) || 0;
@@ -24,9 +24,10 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   await db.prepare(
     `UPDATE fees SET course_fee=@course_fee, amount_paid=@amount_paid, remaining_due=@remaining_due, discount=@discount,
      payment_date=@payment_date, payment_mode=@payment_mode, receipt_number=@receipt_number, due_date=@due_date, remarks=@remarks
-     WHERE id=@id`
+     WHERE id=@id AND school_id=@school_id`
   ).run({
     id: params.id,
+    school_id: auth.session.schoolId,
     course_fee: courseFee,
     amount_paid: amountPaid,
     remaining_due: remainingDue,
@@ -45,6 +46,8 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
+  const target = await db.prepare('SELECT id FROM fees WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId);
+  if (!target) return NextResponse.json({ error: 'Fee record not found.' }, { status: 404 });
   await db.prepare('DELETE FROM fees WHERE id=?').run(params.id);
   return NextResponse.json({ ok: true });
 }

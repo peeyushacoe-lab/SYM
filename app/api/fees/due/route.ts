@@ -24,8 +24,8 @@ export async function GET(req: NextRequest) {
       s.name as student_name, s.mobile, s.roll_number, s.batch_id, b.name as batch_name, ${guardianJoin}
     FROM fees f LEFT JOIN students s ON f.student_id = s.id
     LEFT JOIN batches b ON s.batch_id = b.id
-    WHERE f.remaining_due > 0 AND f.fee_item_id IS NULL`;
-  const legacyParams: any[] = [];
+    WHERE f.school_id = ? AND f.remaining_due > 0 AND f.fee_item_id IS NULL`;
+  const legacyParams: any[] = [auth.session.schoolId];
   if (search) {
     legacyQuery += ' AND (s.name ILIKE ? OR s.mobile ILIKE ?)';
     legacyParams.push(`%${search}%`, `%${search}%`);
@@ -37,8 +37,8 @@ export async function GET(req: NextRequest) {
     FROM student_fee_items sfi
     JOIN students s ON sfi.student_id = s.id
     LEFT JOIN batches b ON s.batch_id = b.id
-    WHERE sfi.active = 1`;
-  const itemsParams: any[] = [];
+    WHERE sfi.school_id = ? AND sfi.active = 1`;
+  const itemsParams: any[] = [auth.session.schoolId];
   if (search) {
     itemsQuery += ' AND (s.name ILIKE ? OR s.mobile ILIKE ?)';
     itemsParams.push(`%${search}%`, `%${search}%`);

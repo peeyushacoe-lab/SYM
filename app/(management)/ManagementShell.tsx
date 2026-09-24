@@ -15,6 +15,7 @@ const navItems: NavItem[] = [
   { href: '/expenses', label: 'Expenses', icon: 'receipt_long' },
   { href: '/enquiries', label: 'Enquiries', icon: 'contact_support' },
   { href: '/exams', label: 'Exams & marks', icon: 'grade' },
+  { href: '/subjects', label: 'Subjects', icon: 'auto_stories' },
   { href: '/homework', label: 'Homework', icon: 'assignment' },
   { href: '/lesson-plans', label: 'Lesson plans', icon: 'menu_book' },
   { href: '/timetable', label: 'Timetable', icon: 'calendar_month' },

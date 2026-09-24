@@ -8,8 +8,8 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const params = await props.params;
   const db = getDb();
   const items = await db
-    .prepare('SELECT id, student_id, doc_type, file_name, mime_type, created_at FROM student_documents WHERE student_id = ? ORDER BY created_at DESC')
-    .all(params.id);
+    .prepare('SELECT id, student_id, doc_type, file_name, mime_type, created_at FROM student_documents WHERE student_id = ? AND school_id = ? ORDER BY created_at DESC')
+    .all(params.id, auth.session.schoolId);
   return NextResponse.json({ items });
 }
 
@@ -22,11 +22,13 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     return NextResponse.json({ error: 'file_name and data_url are required.' }, { status: 400 });
   }
   const db = getDb();
+  const student = await db.prepare('SELECT id FROM students WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId);
+  if (!student) return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
   const result = await db
     .prepare(
-      `INSERT INTO student_documents (student_id, doc_type, file_name, mime_type, data_url, uploaded_by)
-       VALUES (?,?,?,?,?,?) RETURNING id, student_id, doc_type, file_name, mime_type, created_at`
+      `INSERT INTO student_documents (student_id, doc_type, file_name, mime_type, data_url, uploaded_by, school_id)
+       VALUES (?,?,?,?,?,?,?) RETURNING id, student_id, doc_type, file_name, mime_type, created_at`
     )
-    .get(params.id, data.doc_type || 'Other', data.file_name, data.mime_type || null, data.data_url, auth.session.id);
+    .get(params.id, data.doc_type || 'Other', data.file_name, data.mime_type || null, data.data_url, auth.session.id, auth.session.schoolId);
   return NextResponse.json({ item: result });
 }

@@ -15,15 +15,18 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const db = getDb();
   const studentId = Number(params.id);
 
+  const studentRow = await db.prepare('SELECT id FROM students WHERE id = ? AND school_id = ?').get(studentId, auth.session.schoolId);
+  if (!studentRow) return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
+
   const item = (await db
-    .prepare('SELECT * FROM student_fee_items WHERE student_id = ? AND active = 1 ORDER BY id LIMIT 1')
-    .get(studentId)) as FeeItem | undefined;
+    .prepare('SELECT * FROM student_fee_items WHERE student_id = ? AND school_id = ? AND active = 1 ORDER BY id LIMIT 1')
+    .get(studentId, auth.session.schoolId)) as FeeItem | undefined;
   const batch = (await db
     .prepare('SELECT b.end_date FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE s.id = ?')
     .get(studentId)) as any;
   const maxReceipt = (await db
-    .prepare(`SELECT COALESCE(MAX(NULLIF(regexp_replace(receipt_number, '\\D', '', 'g'), '')::int), 0) as max FROM fees`)
-    .get()) as any;
+    .prepare(`SELECT COALESCE(MAX(NULLIF(regexp_replace(receipt_number, '\\D', '', 'g'), '')::int), 0) as max FROM fees WHERE school_id = ?`)
+    .get(auth.session.schoolId)) as any;
 
   if (!item) {
     return NextResponse.json({
@@ -69,6 +72,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const db = getDb();
   const studentId = Number(params.id);
 
+  const studentRow = await db.prepare('SELECT id FROM students WHERE id = ? AND school_id = ?').get(studentId, auth.session.schoolId);
+  if (!studentRow) return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
+
   const amountPaid = Number(data.amount_paid) || 0;
   const discount = Number(data.discount) || 0;
   if (amountPaid <= 0) return NextResponse.json({ error: 'Paid amount must be greater than zero.' }, { status: 400 });
@@ -78,11 +84,11 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   // another student's fee plan (wrong arrears reduction, wrong student billed).
   const item = data.fee_item_id
     ? ((await db
-        .prepare('SELECT * FROM student_fee_items WHERE id = ? AND student_id = ?')
-        .get(Number(data.fee_item_id), studentId)) as FeeItem | undefined)
+        .prepare('SELECT * FROM student_fee_items WHERE id = ? AND student_id = ? AND school_id = ?')
+        .get(Number(data.fee_item_id), studentId, auth.session.schoolId)) as FeeItem | undefined)
     : ((await db
-        .prepare('SELECT * FROM student_fee_items WHERE student_id = ? AND active = 1 ORDER BY id LIMIT 1')
-        .get(studentId)) as FeeItem | undefined);
+        .prepare('SELECT * FROM student_fee_items WHERE student_id = ? AND school_id = ? AND active = 1 ORDER BY id LIMIT 1')
+        .get(studentId, auth.session.schoolId)) as FeeItem | undefined);
 
   if (data.fee_item_id && !item) {
     return NextResponse.json({ error: 'This fee item does not belong to this student.' }, { status: 400 });
@@ -127,18 +133,19 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   }
 
   const maxReceipt = (await db
-    .prepare(`SELECT COALESCE(MAX(NULLIF(regexp_replace(receipt_number, '\\D', '', 'g'), '')::int), 0) as max FROM fees`)
-    .get()) as any;
+    .prepare(`SELECT COALESCE(MAX(NULLIF(regexp_replace(receipt_number, '\\D', '', 'g'), '')::int), 0) as max FROM fees WHERE school_id = ?`)
+    .get(auth.session.schoolId)) as any;
   const receiptNumber = data.receipt_number || String((maxReceipt?.max || 0) + 1);
 
   const result = await db
     .prepare(
       `INSERT INTO fees (student_id, course_fee, amount_paid, remaining_due, payment_date, payment_mode,
-        receipt_number, due_date, remarks, fee_type, discount, period_from, period_to, fee_item_id)
+        receipt_number, due_date, remarks, fee_type, discount, period_from, period_to, fee_item_id, school_id)
        VALUES (@student_id, @course_fee, @amount_paid, @remaining_due, @payment_date, @payment_mode,
-        @receipt_number, @due_date, @remarks, @fee_type, @discount, @period_from, @period_to, @fee_item_id)`
+        @receipt_number, @due_date, @remarks, @fee_type, @discount, @period_from, @period_to, @fee_item_id, @school_id)`
     )
     .run({
+      school_id: auth.session.schoolId,
       student_id: studentId,
       course_fee: courseFee,
       amount_paid: amountPaid,

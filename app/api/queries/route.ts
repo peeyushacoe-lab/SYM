@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const studentId = req.nextUrl.searchParams.get('student_id');
 
   if (role === 'management') {
-    const items = await db.prepare(`${LIST_SQL} ORDER BY q.created_at DESC`).all();
+    const items = await db.prepare(`${LIST_SQL} WHERE q.school_id = ? ORDER BY q.created_at DESC`).all(auth.session.schoolId);
     return NextResponse.json({ items });
   }
   if (role === 'guardian' && studentId) {
@@ -27,11 +27,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
     }
     const items = await db
-      .prepare(`${LIST_SQL} WHERE q.raised_by = ? AND q.student_id = ? ORDER BY q.created_at DESC`)
-      .all(id, studentId);
+      .prepare(`${LIST_SQL} WHERE q.raised_by = ? AND q.student_id = ? AND q.school_id = ? ORDER BY q.created_at DESC`)
+      .all(id, studentId, auth.session.schoolId);
     return NextResponse.json({ items });
   }
-  const items = await db.prepare(`${LIST_SQL} WHERE q.raised_by = ? ORDER BY q.created_at DESC`).all(id);
+  const items = await db.prepare(`${LIST_SQL} WHERE q.raised_by = ? AND q.school_id = ? ORDER BY q.created_at DESC`).all(id, auth.session.schoolId);
   return NextResponse.json({ items });
 }
 
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
   const db = getDb();
   const result = await db
-    .prepare('INSERT INTO queries (student_id, raised_by, subject, message) VALUES (?, ?, ?, ?)')
-    .run(studentId, auth.session.id, data.subject, data.message || null);
+    .prepare('INSERT INTO queries (student_id, raised_by, subject, message, school_id) VALUES (?, ?, ?, ?, ?)')
+    .run(studentId, auth.session.id, data.subject, data.message || null, auth.session.schoolId);
   return NextResponse.json({ id: result.lastInsertRowid });
 }

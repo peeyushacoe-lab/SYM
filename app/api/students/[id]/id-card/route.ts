@@ -9,8 +9,8 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const params = await props.params;
   const db = getDb();
   const row = (await db
-    .prepare(`SELECT s.*, b.name as batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE s.id = ?`)
-    .get(params.id)) as any;
+    .prepare(`SELECT s.*, b.name as batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE s.id = ? AND s.school_id = ?`)
+    .get(params.id, auth.session.schoolId)) as any;
   if (!row) return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
 
   const pdf = await buildIdCardPdf(row);

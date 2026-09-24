@@ -6,7 +6,7 @@ export async function GET() {
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  const items = await db.prepare('SELECT * FROM role_permissions ORDER BY role, module_key').all();
+  const items = await db.prepare('SELECT * FROM role_permissions WHERE school_id = ? ORDER BY role, module_key').all(auth.session.schoolId);
   return NextResponse.json({ items });
 }
 
@@ -22,11 +22,11 @@ export async function PUT(req: NextRequest) {
   for (const p of data.permissions) {
     await db
       .prepare(
-        `INSERT INTO role_permissions (role, module_key, can_view, can_edit)
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT (role, module_key) DO UPDATE SET can_view = EXCLUDED.can_view, can_edit = EXCLUDED.can_edit`
+        `INSERT INTO role_permissions (role, module_key, can_view, can_edit, school_id)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (school_id, role, module_key) DO UPDATE SET can_view = EXCLUDED.can_view, can_edit = EXCLUDED.can_edit`
       )
-      .run(data.role, p.module_key, p.can_view ? 1 : 0, p.can_edit === false ? 0 : 1);
+      .run(data.role, p.module_key, p.can_view ? 1 : 0, p.can_edit === false ? 0 : 1, auth.session.schoolId);
   }
   return NextResponse.json({ ok: true });
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
+import getDb from '@/lib/db';
 import {
   getStudentByUserId,
   guardianOwnsStudent,
@@ -28,6 +29,11 @@ export async function GET(req: NextRequest, props: { params: Promise<{ studentId
       return NextResponse.json({ error: 'Specify a student id.' }, { status: 400 });
     }
     studentId = Number(params.studentId);
+    // A management user's studentId is a raw URL param, not derived from
+    // their own session identity — without this check, a school-A admin
+    // could read a school-B student's attendance/fees/results by guessing ids.
+    const owned = await getDb().prepare('SELECT id FROM students WHERE id = ? AND school_id = ?').get(studentId, auth.session.schoolId);
+    if (!owned) return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
   } else if (auth.session.role === 'student') {
     const student = await getStudentByUserId(auth.session.id);
     if (!student) {

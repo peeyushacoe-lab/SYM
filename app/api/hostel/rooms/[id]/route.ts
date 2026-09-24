@@ -9,7 +9,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   const data = await req.json();
   const db = getDb();
 
-  const existing = (await db.prepare('SELECT * FROM hostel_rooms WHERE id = ?').get(params.id)) as any;
+  const existing = (await db.prepare('SELECT * FROM hostel_rooms WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId)) as any;
   if (!existing) return NextResponse.json({ error: 'Room not found.' }, { status: 404 });
   const newCapacity = Number(data.capacity) || existing.capacity;
   if (newCapacity < existing.occupied_count) {
@@ -17,8 +17,8 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   }
 
   await db
-    .prepare(`UPDATE hostel_rooms SET room_number=?, block=?, room_type=?, capacity=?, monthly_fee=?, remarks=? WHERE id=?`)
-    .run(data.room_number, data.block || null, data.room_type || 'Shared', newCapacity, Number(data.monthly_fee) || 0, data.remarks || null, params.id);
+    .prepare(`UPDATE hostel_rooms SET room_number=?, block=?, room_type=?, capacity=?, monthly_fee=?, remarks=? WHERE id=? AND school_id=?`)
+    .run(data.room_number, data.block || null, data.room_type || 'Shared', newCapacity, Number(data.monthly_fee) || 0, data.remarks || null, params.id, auth.session.schoolId);
   return NextResponse.json({ ok: true });
 }
 
@@ -27,6 +27,8 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
+  const existing = (await db.prepare('SELECT id FROM hostel_rooms WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId)) as any;
+  if (!existing) return NextResponse.json({ error: 'Room not found.' }, { status: 404 });
   const active = (await db.prepare("SELECT COUNT(*) as c FROM hostel_allocations WHERE room_id = ? AND status = 'Active'").get(params.id)) as any;
   if (active?.c > 0) {
     return NextResponse.json({ error: 'Cannot delete a room with active allocations.' }, { status: 400 });

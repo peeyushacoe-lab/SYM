@@ -8,7 +8,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if ('error' in auth) return auth.error;
   const db = getDb();
 
-  const allocation = (await db.prepare('SELECT * FROM hostel_allocations WHERE id = ?').get(params.id)) as any;
+  const allocation = (await db.prepare('SELECT * FROM hostel_allocations WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId)) as any;
   if (!allocation) return NextResponse.json({ error: 'Allocation not found.' }, { status: 404 });
   if (allocation.status === 'Vacated') {
     return NextResponse.json({ error: 'This allocation has already been vacated.' }, { status: 400 });

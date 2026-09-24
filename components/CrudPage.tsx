@@ -26,6 +26,11 @@ export interface FieldDef {
   // has no matching column to prefill from, and would mislead into thinking
   // editing re-triggers it).
   hideOnEdit?: boolean;
+  // Compute this field's initial value from the full row when editing —
+  // for a UI-only field that doesn't map 1:1 to a single DB column (e.g. a
+  // "Batch or Course" toggle derived from whichever of batch_id/course the
+  // row actually has set). Falls back to row[name] / defaultValue when absent.
+  computeValue?: (row: Record<string, any>) => any;
   // Called after this field's own value is set, with the new value and the
   // form state (including that new value already applied). Return a partial
   // object to merge additional field changes — e.g. selecting a batch can
@@ -150,7 +155,12 @@ export default function CrudPage({
 
   function openEdit(row: any) {
     const initial: Record<string, any> = {};
-    fields.forEach((f) => (initial[f.name] = row[f.name] ?? f.defaultValue ?? (f.type === 'checkbox' ? 0 : '')));
+    fields.forEach(
+      (f) =>
+        (initial[f.name] = f.computeValue
+          ? f.computeValue(row)
+          : row[f.name] ?? f.defaultValue ?? (f.type === 'checkbox' ? 0 : ''))
+    );
     setForm(initial);
     setEditing(row);
     setError('');

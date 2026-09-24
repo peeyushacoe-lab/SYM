@@ -19,7 +19,7 @@ export async function GET() {
   `;
 
   if (auth.session.role === 'management' || auth.session.role === 'teacher') {
-    const items = await db.prepare(`${baseSelect} ORDER BY li.issued_date DESC, li.id DESC`).all();
+    const items = await db.prepare(`${baseSelect} WHERE li.school_id = ? ORDER BY li.issued_date DESC, li.id DESC`).all(auth.session.schoolId);
     return NextResponse.json({ items });
   }
 
@@ -27,8 +27,8 @@ export async function GET() {
     const student = await getStudentByUserId(auth.session.id);
     if (!student) return NextResponse.json({ items: [] });
     const items = await db
-      .prepare(`${baseSelect} WHERE li.student_id = ? ORDER BY li.issued_date DESC, li.id DESC`)
-      .all(student.id);
+      .prepare(`${baseSelect} WHERE li.student_id = ? AND li.school_id = ? ORDER BY li.issued_date DESC, li.id DESC`)
+      .all(student.id, auth.session.schoolId);
     return NextResponse.json({ items });
   }
 
@@ -36,10 +36,10 @@ export async function GET() {
     const items = await db
       .prepare(
         `${baseSelect}
-         WHERE li.student_id IN (SELECT student_id FROM student_guardians WHERE guardian_user_id = ?)
+         WHERE li.school_id = ? AND li.student_id IN (SELECT student_id FROM student_guardians WHERE guardian_user_id = ?)
          ORDER BY li.issued_date DESC, li.id DESC`
       )
-      .all(auth.session.id);
+      .all(auth.session.schoolId, auth.session.id);
     return NextResponse.json({ items });
   }
 
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   }
   const db = getDb();
 
-  const book = (await db.prepare('SELECT * FROM library_books WHERE id = ?').get(data.book_id)) as any;
+  const book = (await db.prepare('SELECT * FROM library_books WHERE id = ? AND school_id = ?').get(data.book_id, auth.session.schoolId)) as any;
   if (!book) return NextResponse.json({ error: 'Book not found.' }, { status: 404 });
   if (book.available_copies <= 0) {
     return NextResponse.json({ error: 'No copies available to issue.' }, { status: 400 });
@@ -64,10 +64,10 @@ export async function POST(req: NextRequest) {
   const issuedDate = data.issued_date || new Date().toISOString().slice(0, 10);
   const result = await db
     .prepare(
-      `INSERT INTO library_issues (book_id, student_id, issued_date, due_date, status, issued_by)
-       VALUES (?, ?, ?, ?, 'Issued', ?)`
+      `INSERT INTO library_issues (book_id, student_id, issued_date, due_date, status, issued_by, school_id)
+       VALUES (?, ?, ?, ?, 'Issued', ?, ?)`
     )
-    .run(data.book_id, data.student_id, issuedDate, data.due_date, auth.session.id);
+    .run(data.book_id, data.student_id, issuedDate, data.due_date, auth.session.id, auth.session.schoolId);
 
   await db.prepare('UPDATE library_books SET available_copies = available_copies - 1 WHERE id = ?').run(data.book_id);
 

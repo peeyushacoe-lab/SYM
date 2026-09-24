@@ -11,7 +11,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   // Quantity is only changed via stock transactions, not a direct edit, to keep the log accurate.
   await db
     .prepare(
-      `UPDATE inventory_items SET name=?, category=?, unit=?, unit_cost=?, reorder_level=?, location=?, remarks=? WHERE id=?`
+      `UPDATE inventory_items SET name=?, category=?, unit=?, unit_cost=?, reorder_level=?, location=?, remarks=? WHERE id=? AND school_id=?`
     )
     .run(
       data.name,
@@ -21,7 +21,8 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
       Number(data.reorder_level) || 0,
       data.location || null,
       data.remarks || null,
-      params.id
+      params.id,
+      auth.session.schoolId
     );
   return NextResponse.json({ ok: true });
 }
@@ -31,6 +32,6 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  await db.prepare('DELETE FROM inventory_items WHERE id = ?').run(params.id);
+  await db.prepare('DELETE FROM inventory_items WHERE id = ? AND school_id = ?').run(params.id, auth.session.schoolId);
   return NextResponse.json({ ok: true });
 }

@@ -12,17 +12,18 @@ export async function GET(req: NextRequest) {
         .prepare(
           `SELECT b.*, COUNT(s.id) as student_count FROM batches b
            LEFT JOIN students s ON s.batch_id = b.id
-           WHERE b.name ILIKE ? OR b.course ILIKE ?
+           WHERE b.school_id = ? AND (b.name ILIKE ? OR b.course ILIKE ?)
            GROUP BY b.id ORDER BY b.name`
         )
-        .all(`%${search}%`, `%${search}%`)
+        .all(auth.session.schoolId, `%${search}%`, `%${search}%`)
     : await db
         .prepare(
           `SELECT b.*, COUNT(s.id) as student_count FROM batches b
            LEFT JOIN students s ON s.batch_id = b.id
+           WHERE b.school_id = ?
            GROUP BY b.id ORDER BY b.name`
         )
-        .all();
+        .all(auth.session.schoolId);
   return NextResponse.json({ items });
 }
 
@@ -34,9 +35,10 @@ export async function POST(req: NextRequest) {
   const db = getDb();
   const result = await db
     .prepare(
-      'INSERT INTO batches (name, course, start_date, end_date, timing, capacity, remarks, advance_fee, monthly_fee) VALUES (@name, @course, @start_date, @end_date, @timing, @capacity, @remarks, @advance_fee, @monthly_fee)'
+      'INSERT INTO batches (name, course, start_date, end_date, timing, capacity, remarks, advance_fee, monthly_fee, school_id) VALUES (@name, @course, @start_date, @end_date, @timing, @capacity, @remarks, @advance_fee, @monthly_fee, @school_id)'
     )
     .run({
+      school_id: auth.session.schoolId,
       name: data.name,
       course: data.course || null,
       start_date: data.start_date || null,

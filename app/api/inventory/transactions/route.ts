@@ -11,10 +11,11 @@ export async function GET() {
       `SELECT t.*, i.name as item_name, i.unit
        FROM inventory_transactions t
        JOIN inventory_items i ON t.item_id = i.id
+       WHERE t.school_id = ?
        ORDER BY t.txn_date DESC, t.id DESC
        LIMIT 100`
     )
-    .all();
+    .all(auth.session.schoolId);
   return NextResponse.json({ items });
 }
 
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
   const qty = Math.abs(Number(data.quantity));
   const db = getDb();
 
-  const item = (await db.prepare('SELECT * FROM inventory_items WHERE id = ?').get(data.item_id)) as any;
+  const item = (await db.prepare('SELECT * FROM inventory_items WHERE id = ? AND school_id = ?').get(data.item_id, auth.session.schoolId)) as any;
   if (!item) return NextResponse.json({ error: 'Item not found.' }, { status: 404 });
 
   if (data.type === 'Out' && item.quantity < qty) {
@@ -42,8 +43,8 @@ export async function POST(req: NextRequest) {
   await db.prepare('UPDATE inventory_items SET quantity = ? WHERE id = ?').run(newQty, data.item_id);
 
   const result = await db
-    .prepare(`INSERT INTO inventory_transactions (item_id, type, quantity, reason, txn_date, created_by) VALUES (?, ?, ?, ?, ?, ?)`)
-    .run(data.item_id, data.type, qty, data.reason || null, data.txn_date || new Date().toISOString().slice(0, 10), auth.session.id);
+    .prepare(`INSERT INTO inventory_transactions (item_id, type, quantity, reason, txn_date, created_by, school_id) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+    .run(data.item_id, data.type, qty, data.reason || null, data.txn_date || new Date().toISOString().slice(0, 10), auth.session.id, auth.session.schoolId);
 
   return NextResponse.json({ id: result.lastInsertRowid, newQty });
 }

@@ -9,9 +9,10 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   const data = await req.json();
   const db = getDb();
   await db.prepare(
-    'UPDATE expenses SET expense_date=@expense_date, category=@category, description=@description, amount=@amount, payment_mode=@payment_mode, remarks=@remarks WHERE id=@id'
+    'UPDATE expenses SET expense_date=@expense_date, category=@category, description=@description, amount=@amount, payment_mode=@payment_mode, remarks=@remarks WHERE id=@id AND school_id=@school_id'
   ).run({
     id: params.id,
+    school_id: auth.session.schoolId,
     expense_date: data.expense_date,
     category: data.category || null,
     description: data.description || null,
@@ -27,6 +28,6 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  await db.prepare('DELETE FROM expenses WHERE id=?').run(params.id);
+  await db.prepare('DELETE FROM expenses WHERE id=? AND school_id=?').run(params.id, auth.session.schoolId);
   return NextResponse.json({ ok: true });
 }

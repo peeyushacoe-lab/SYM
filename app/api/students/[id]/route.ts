@@ -10,9 +10,9 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const item = await db
     .prepare(
       `SELECT s.*, b.name as batch_name, b.start_date as batch_start_date
-       FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE s.id = ?`
+       FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE s.id = ? AND s.school_id = ?`
     )
-    .get(params.id);
+    .get(params.id, auth.session.schoolId);
   if (!item) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
   return NextResponse.json({ item });
 }
@@ -22,6 +22,9 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const data = await req.json();
+  if (!data.batch_id && !data.course) {
+    return NextResponse.json({ error: 'Select either a batch or a course.' }, { status: 400 });
+  }
   const db = getDb();
   await db.prepare(
     `UPDATE students SET name=@name, father_name=@father_name, mother_name=@mother_name, mobile=@mobile,
@@ -29,9 +32,10 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
      course=@course, batch_id=@batch_id, admission_date=@admission_date, roll_number=@roll_number,
      registration_number=@registration_number, aadhaar=@aadhaar, photo=@photo, email=@email, remarks=@remarks,
      fee_category=@fee_category, fee_type=@fee_type, fee_amount=@fee_amount
-     WHERE id=@id`
+     WHERE id=@id AND school_id=@school_id`
   ).run({
     id: params.id,
+    school_id: auth.session.schoolId,
     name: data.name,
     father_name: data.father_name || null,
     mother_name: data.mother_name || null,
@@ -62,6 +66,10 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
+
+  const target = await db.prepare('SELECT id FROM students WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId);
+  if (!target) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+
   // Clear every table that has a NOT NULL, non-cascading FK to students(id)
   // before deleting the student itself — otherwise Postgres throws a raw
   // foreign-key-violation 500 the moment the student has any history at all.

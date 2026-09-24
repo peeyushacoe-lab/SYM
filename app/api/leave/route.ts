@@ -20,22 +20,22 @@ export async function GET(req: NextRequest) {
   const studentId = req.nextUrl.searchParams.get('student_id');
 
   if (role === 'management') {
-    const items = await db.prepare(`${LIST_SQL} ORDER BY l.created_at DESC`).all();
+    const items = await db.prepare(`${LIST_SQL} WHERE l.school_id = ? ORDER BY l.created_at DESC`).all(auth.session.schoolId);
     return NextResponse.json({ items });
   }
   if (role === 'teacher') {
     const items = await db
       .prepare(
-        `${LIST_SQL} WHERE s.batch_id IN (SELECT batch_id FROM teacher_batches WHERE teacher_user_id = ?)
+        `${LIST_SQL} WHERE l.school_id = ? AND s.batch_id IN (SELECT batch_id FROM teacher_batches WHERE teacher_user_id = ?)
          ORDER BY l.created_at DESC`
       )
-      .all(id);
+      .all(auth.session.schoolId, id);
     return NextResponse.json({ items });
   }
   if (role === 'student') {
     const student = await getStudentByUserId(id);
     if (!student) return NextResponse.json({ items: [] });
-    const items = await db.prepare(`${LIST_SQL} WHERE l.student_id = ? ORDER BY l.created_at DESC`).all(student.id);
+    const items = await db.prepare(`${LIST_SQL} WHERE l.student_id = ? AND l.school_id = ? ORDER BY l.created_at DESC`).all(student.id, auth.session.schoolId);
     return NextResponse.json({ items });
   }
   // guardian
@@ -43,15 +43,15 @@ export async function GET(req: NextRequest) {
     if (!(await guardianOwnsStudent(id, studentId))) {
       return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
     }
-    const items = await db.prepare(`${LIST_SQL} WHERE l.student_id = ? ORDER BY l.created_at DESC`).all(studentId);
+    const items = await db.prepare(`${LIST_SQL} WHERE l.student_id = ? AND l.school_id = ? ORDER BY l.created_at DESC`).all(studentId, auth.session.schoolId);
     return NextResponse.json({ items });
   }
   const items = await db
     .prepare(
-      `${LIST_SQL} WHERE l.student_id IN (SELECT student_id FROM student_guardians WHERE guardian_user_id = ?)
+      `${LIST_SQL} WHERE l.school_id = ? AND l.student_id IN (SELECT student_id FROM student_guardians WHERE guardian_user_id = ?)
        ORDER BY l.created_at DESC`
     )
-    .all(id);
+    .all(auth.session.schoolId, id);
   return NextResponse.json({ items });
 }
 
@@ -78,8 +78,8 @@ export async function POST(req: NextRequest) {
   const db = getDb();
   const result = await db
     .prepare(
-      'INSERT INTO leave_requests (student_id, requested_by, from_date, to_date, reason) VALUES (?, ?, ?, ?, ?)'
+      'INSERT INTO leave_requests (student_id, requested_by, from_date, to_date, reason, school_id) VALUES (?, ?, ?, ?, ?, ?)'
     )
-    .run(studentId, auth.session.id, data.from_date, data.to_date, data.reason);
+    .run(studentId, auth.session.id, data.from_date, data.to_date, data.reason, auth.session.schoolId);
   return NextResponse.json({ id: result.lastInsertRowid });
 }

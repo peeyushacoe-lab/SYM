@@ -6,7 +6,7 @@ export async function GET() {
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  const items = await db.prepare('SELECT * FROM visitor_logs ORDER BY in_time DESC, id DESC LIMIT 100').all();
+  const items = await db.prepare('SELECT * FROM visitor_logs WHERE school_id = ? ORDER BY in_time DESC, id DESC LIMIT 100').all(auth.session.schoolId);
   return NextResponse.json({ items });
 }
 
@@ -19,9 +19,9 @@ export async function POST(req: NextRequest) {
   const inTime = data.in_time || new Date().toISOString();
   const result = await db
     .prepare(
-      `INSERT INTO visitor_logs (visitor_name, mobile, purpose, to_meet, in_time, remarks, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO visitor_logs (visitor_name, mobile, purpose, to_meet, in_time, remarks, created_by, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(data.visitor_name, data.mobile || null, data.purpose || null, data.to_meet || null, inTime, data.remarks || null, auth.session.id);
+    .run(data.visitor_name, data.mobile || null, data.purpose || null, data.to_meet || null, inTime, data.remarks || null, auth.session.id, auth.session.schoolId);
   return NextResponse.json({ id: result.lastInsertRowid });
 }

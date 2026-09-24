@@ -7,7 +7,7 @@ export async function GET() {
   const session = await getSessionFromCookies();
   if (!session) return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 });
   const db = getDb();
-  const items = await db.prepare('SELECT * FROM grade_bands ORDER BY min_percent DESC').all();
+  const items = await db.prepare('SELECT * FROM grade_bands WHERE school_id = ? ORDER BY min_percent DESC').all(session.schoolId);
   return NextResponse.json({ items });
 }
 
@@ -20,11 +20,11 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: 'bands array is required.' }, { status: 400 });
   }
   const db = getDb();
-  await db.exec('DELETE FROM grade_bands');
+  await db.prepare('DELETE FROM grade_bands WHERE school_id = ?').run(auth.session.schoolId);
   for (const b of data.bands) {
     await db
-      .prepare('INSERT INTO grade_bands (grade, min_percent, max_percent, remarks) VALUES (?,?,?,?)')
-      .run(b.grade, b.min_percent, b.max_percent, b.remarks || null);
+      .prepare('INSERT INTO grade_bands (grade, min_percent, max_percent, remarks, school_id) VALUES (?,?,?,?,?)')
+      .run(b.grade, b.min_percent, b.max_percent, b.remarks || null, auth.session.schoolId);
   }
   return NextResponse.json({ ok: true });
 }

@@ -12,9 +12,10 @@ export async function GET() {
        FROM transport_assignments a
        JOIN transport_vehicles v ON a.vehicle_id = v.id
        JOIN students s ON a.student_id = s.id
+       WHERE a.school_id = ?
        ORDER BY a.assigned_date DESC, a.id DESC`
     )
-    .all();
+    .all(auth.session.schoolId);
   return NextResponse.json({ items });
 }
 
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
   }
   const db = getDb();
 
-  const vehicle = (await db.prepare('SELECT * FROM transport_vehicles WHERE id = ?').get(data.vehicle_id)) as any;
+  const vehicle = (await db.prepare('SELECT * FROM transport_vehicles WHERE id = ? AND school_id = ?').get(data.vehicle_id, auth.session.schoolId)) as any;
   if (!vehicle) return NextResponse.json({ error: 'Vehicle not found.' }, { status: 404 });
 
   const activeCount = (await db
@@ -38,8 +39,8 @@ export async function POST(req: NextRequest) {
   }
 
   const existingActive = (await db
-    .prepare("SELECT 1 FROM transport_assignments WHERE student_id = ? AND status = 'Active'")
-    .get(data.student_id)) as any;
+    .prepare("SELECT 1 FROM transport_assignments WHERE student_id = ? AND status = 'Active' AND school_id = ?")
+    .get(data.student_id, auth.session.schoolId)) as any;
   if (existingActive) {
     return NextResponse.json({ error: 'This student already has an active transport assignment.' }, { status: 400 });
   }
@@ -47,10 +48,10 @@ export async function POST(req: NextRequest) {
   const assignedDate = data.assigned_date || new Date().toISOString().slice(0, 10);
   const result = await db
     .prepare(
-      `INSERT INTO transport_assignments (vehicle_id, student_id, pickup_point, monthly_fee, status, assigned_date)
-       VALUES (?, ?, ?, ?, 'Active', ?)`
+      `INSERT INTO transport_assignments (vehicle_id, student_id, pickup_point, monthly_fee, status, assigned_date, school_id)
+       VALUES (?, ?, ?, ?, 'Active', ?, ?)`
     )
-    .run(data.vehicle_id, data.student_id, data.pickup_point || null, Number(data.monthly_fee) || 0, assignedDate);
+    .run(data.vehicle_id, data.student_id, data.pickup_point || null, Number(data.monthly_fee) || 0, assignedDate, auth.session.schoolId);
 
   return NextResponse.json({ id: result.lastInsertRowid });
 }

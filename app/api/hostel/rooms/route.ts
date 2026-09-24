@@ -6,7 +6,7 @@ export async function GET() {
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  const items = await db.prepare('SELECT * FROM hostel_rooms ORDER BY block ASC, room_number ASC').all();
+  const items = await db.prepare('SELECT * FROM hostel_rooms WHERE school_id = ? ORDER BY block ASC, room_number ASC').all(auth.session.schoolId);
   return NextResponse.json({ items });
 }
 
@@ -18,8 +18,8 @@ export async function POST(req: NextRequest) {
   const db = getDb();
   const result = await db
     .prepare(
-      `INSERT INTO hostel_rooms (room_number, block, room_type, capacity, monthly_fee, remarks)
-       VALUES (?, ?, ?, ?, ?, ?)`
+      `INSERT INTO hostel_rooms (room_number, block, room_type, capacity, monthly_fee, remarks, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       data.room_number,
@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
       data.room_type || 'Shared',
       Number(data.capacity) || 1,
       Number(data.monthly_fee) || 0,
-      data.remarks || null
+      data.remarks || null,
+      auth.session.schoolId
     );
   return NextResponse.json({ id: result.lastInsertRowid });
 }

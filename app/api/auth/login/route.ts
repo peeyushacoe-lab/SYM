@@ -18,11 +18,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid username or password.' }, { status: 401 });
   }
 
+  // A deactivated school (Owner console -> Edit school -> Active toggle)
+  // locks out every login belonging to it — the Owner's own account has no
+  // school_id and is never affected by this.
+  if (user.school_id != null) {
+    const school = (await db.prepare('SELECT active FROM schools WHERE id = ?').get(user.school_id)) as any;
+    if (!school || !school.active) {
+      return NextResponse.json({ error: 'This school\'s account is currently inactive. Contact the platform owner.' }, { status: 401 });
+    }
+  }
+
   const sessionUser = {
     id: user.id,
     username: user.username,
     name: user.name,
     role: user.role as Role,
+    schoolId: user.school_id ?? null,
   };
   const token = await signSession(sessionUser);
 

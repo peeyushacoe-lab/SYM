@@ -10,8 +10,8 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   const db = getDb();
 
   const leave = (await db
-    .prepare('SELECT l.*, s.batch_id FROM leave_requests l JOIN students s ON l.student_id = s.id WHERE l.id = ?')
-    .get(params.id)) as any;
+    .prepare('SELECT l.*, s.batch_id FROM leave_requests l JOIN students s ON l.student_id = s.id WHERE l.id = ? AND l.school_id = ?')
+    .get(params.id, auth.session.schoolId)) as any;
   if (!leave) return NextResponse.json({ error: 'Leave request not found.' }, { status: 404 });
 
   if (auth.session.role === 'teacher') {

@@ -9,7 +9,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   const data = await req.json();
   const db = getDb();
 
-  const existing = (await db.prepare('SELECT * FROM library_books WHERE id = ?').get(params.id)) as any;
+  const existing = (await db.prepare('SELECT * FROM library_books WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId)) as any;
   if (!existing) return NextResponse.json({ error: 'Book not found.' }, { status: 404 });
 
   const newTotal = Number(data.total_copies) || existing.total_copies;
@@ -18,9 +18,9 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
 
   await db
     .prepare(
-      `UPDATE library_books SET title=?, author=?, isbn=?, category=?, total_copies=?, available_copies=? WHERE id=?`
+      `UPDATE library_books SET title=?, author=?, isbn=?, category=?, total_copies=?, available_copies=? WHERE id=? AND school_id=?`
     )
-    .run(data.title, data.author || null, data.isbn || null, data.category || null, newTotal, newAvailable, params.id);
+    .run(data.title, data.author || null, data.isbn || null, data.category || null, newTotal, newAvailable, params.id, auth.session.schoolId);
   return NextResponse.json({ ok: true });
 }
 
@@ -29,6 +29,8 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
+  const existing = (await db.prepare('SELECT id FROM library_books WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId)) as any;
+  if (!existing) return NextResponse.json({ error: 'Book not found.' }, { status: 404 });
   const activeIssues = (await db
     .prepare("SELECT COUNT(*) as c FROM library_issues WHERE book_id = ? AND status = 'Issued'")
     .get(params.id)) as any;

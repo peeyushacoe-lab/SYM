@@ -9,7 +9,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   const data = await req.json();
   const db = getDb();
 
-  const run = (await db.prepare('SELECT * FROM payroll_runs WHERE id = ?').get(params.id)) as any;
+  const run = (await db.prepare('SELECT * FROM payroll_runs WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId)) as any;
   if (!run) return NextResponse.json({ error: 'Payroll run not found.' }, { status: 404 });
 
   if (data.status === 'Paid' && run.status !== 'Paid') {
@@ -38,7 +38,7 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  const run = (await db.prepare('SELECT * FROM payroll_runs WHERE id = ?').get(params.id)) as any;
+  const run = (await db.prepare('SELECT * FROM payroll_runs WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId)) as any;
   if (!run) return NextResponse.json({ error: 'Payroll run not found.' }, { status: 404 });
   if (run.status === 'Paid') {
     return NextResponse.json({ error: 'Cannot delete a payroll run that has already been paid.' }, { status: 400 });

@@ -67,7 +67,7 @@ export default function MarksEntry({ examId, onBack }: { examId: number | string
             <h2 className="text-lg font-semibold text-text">{exam.name}</h2>
           </div>
           <p className="text-xs text-textSecondary mt-0.5">
-            {exam.batch_name} · {exam.subject || 'General'} · {exam.exam_date || 'Date not set'} · Max marks: {max}
+            {exam.batch_name || (exam.course ? `Course: ${exam.course}` : '-')} · {exam.subject || 'General'} · {exam.exam_date || 'Date not set'} · Max marks: {max}
           </p>
         </div>
         <button onClick={save} disabled={saving} className="btn btn-primary">
@@ -91,13 +91,14 @@ export default function MarksEntry({ examId, onBack }: { examId: number | string
               <th className="px-4 py-2.5 text-[11px] text-textSecondary uppercase">Marks (out of {max})</th>
               <th className="px-4 py-2.5 text-[11px] text-textSecondary uppercase">Grade</th>
               <th className="px-4 py-2.5 text-[11px] text-textSecondary uppercase">Remarks</th>
+              <th className="px-4 py-2.5 text-[11px] text-textSecondary uppercase text-right">Certificate</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-textSecondary">
-                  No students in this batch.
+                <td colSpan={6} className="px-4 py-8 text-center text-textSecondary">
+                  No students found for this {exam.batch_name ? 'batch' : 'course'}.
                 </td>
               </tr>
             ) : (
@@ -126,6 +127,20 @@ export default function MarksEntry({ examId, onBack }: { examId: number | string
                         value={r.remarks}
                         onChange={(e) => update(idx, 'remarks', e.target.value)}
                       />
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {r.marks !== '' ? (
+                        <a
+                          href={`/api/exams/${examId}/certificate/${r.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-outline !py-1 !px-2.5 text-xs"
+                        >
+                          Generate
+                        </a>
+                      ) : (
+                        <span className="text-[11px] text-textSecondary">Enter marks first</span>
+                      )}
                     </td>
                   </tr>
                 );

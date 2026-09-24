@@ -206,6 +206,7 @@ function UsersTab({ role }: { role: 'teacher' | 'guardian' | 'student' | 'manage
   const [selectedStudentId, setSelectedStudentId] = useState<number | ''>('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [created, setCreated] = useState<{ username: string; password?: string; emailSent: boolean; emailSkipped: boolean } | null>(null);
 
   function load() {
     fetch(`/api/users?role=${role}`)
@@ -225,6 +226,7 @@ function UsersTab({ role }: { role: 'teacher' | 'guardian' | 'student' | 'manage
     setSelectedStudentIds([]);
     setSelectedStudentId('');
     setError('');
+    setCreated(null);
     setOpen(true);
   }
 
@@ -248,8 +250,14 @@ function UsersTab({ role }: { role: 'teacher' | 'guardian' | 'student' | 'manage
       setError(data.error || 'Failed to save.');
       return;
     }
-    setOpen(false);
     load();
+    if (data.password) {
+      // Auto-generated credentials — show them so the admin can relay them
+      // manually if email isn't sending yet, instead of just closing the modal.
+      setCreated({ username: data.username, password: data.password, emailSent: data.emailSent, emailSkipped: data.emailSkipped });
+    } else {
+      setOpen(false);
+    }
   }
 
   async function handleDelete(id: number) {
@@ -316,6 +324,34 @@ function UsersTab({ role }: { role: 'teacher' | 'guardian' | 'student' | 'manage
       </div>
 
       <Modal open={open} onClose={() => setOpen(false)} title={cfg.addLabel}>
+        {created ? (
+          <div>
+            <p className="text-sm text-on-surface-variant mb-4">
+              {created.emailSent
+                ? 'Login credentials have been emailed.'
+                : 'Email is not configured yet (or failed to send) — share these credentials yourself:'}
+            </p>
+            <div className="bg-surface-container-high rounded-lg p-3 text-sm space-y-1 mb-4">
+              <div>
+                <span className="text-on-surface-variant">Username: </span>
+                <b>{created.username}</b>
+              </div>
+              <div>
+                <span className="text-on-surface-variant">Password: </span>
+                <b>{created.password}</b>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setCreated(null);
+                setOpen(false);
+              }}
+              className="btn btn-primary w-full"
+            >
+              Done
+            </button>
+          </div>
+        ) : (
         <form onSubmit={handleSave} className="space-y-4">
           {error && <div className="text-sm text-danger bg-dangerLight border border-dangerBorder rounded-lg px-3 py-2">{error}</div>}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -324,20 +360,23 @@ function UsersTab({ role }: { role: 'teacher' | 'guardian' | 'student' | 'manage
               <input className="input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <label className="label">Username *</label>
-              <input className="input" required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+              <label className="label">Username</label>
+              <input className="input" placeholder="Defaults to email below" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
             </div>
             <div>
-              <label className="label">Password *</label>
-              <input className="input" type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              <label className="label">Password</label>
+              <input className="input" type="password" placeholder="Auto-generated if left blank" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
             </div>
             <div>
               <label className="label">Mobile</label>
               <input className="input" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
             </div>
-            <div className="col-span-2">
+            <div>
               <label className="label">Email</label>
               <input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            </div>
+            <div className="col-span-2 text-[11px] text-on-surface-variant -mt-1">
+              Leave username/password blank to auto-generate a login from the email above and email the credentials.
             </div>
           </div>
 
@@ -411,6 +450,7 @@ function UsersTab({ role }: { role: 'teacher' | 'guardian' | 'student' | 'manage
             </button>
           </div>
         </form>
+        )}
       </Modal>
     </div>
   );

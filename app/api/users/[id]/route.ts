@@ -5,10 +5,16 @@ import { requireRole } from '@/lib/api-auth';
 
 export async function PUT(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const auth = await requireRole('superadmin');
+  const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const data = await req.json();
   const db = getDb();
+
+  // A school admin may only edit accounts within their own school.
+  const target = (await db.prepare('SELECT school_id FROM users WHERE id = ?').get(params.id)) as any;
+  if (!target || target.school_id !== auth.session.schoolId) {
+    return NextResponse.json({ error: 'Account not found.' }, { status: 404 });
+  }
 
   await db.prepare('UPDATE users SET name=?, mobile=?, email=?, active=? WHERE id=?').run(
     data.name,
@@ -28,16 +34,16 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   if (user?.role === 'teacher' && Array.isArray(data.batch_ids)) {
     await db.prepare('DELETE FROM teacher_batches WHERE teacher_user_id = ?').run(params.id);
     const stmt = db.prepare(
-      'INSERT INTO teacher_batches (teacher_user_id, batch_id) VALUES (?, ?) ON CONFLICT (teacher_user_id, batch_id) DO NOTHING'
+      'INSERT INTO teacher_batches (teacher_user_id, batch_id, school_id) VALUES (?, ?, ?) ON CONFLICT (teacher_user_id, batch_id) DO NOTHING'
     );
-    for (const bid of data.batch_ids) await stmt.run(params.id, bid);
+    for (const bid of data.batch_ids) await stmt.run(params.id, bid, auth.session.schoolId);
   }
   if (user?.role === 'guardian' && Array.isArray(data.student_ids)) {
     await db.prepare('DELETE FROM student_guardians WHERE guardian_user_id = ?').run(params.id);
     const stmt = db.prepare(
-      'INSERT INTO student_guardians (student_id, guardian_user_id) VALUES (?, ?) ON CONFLICT (student_id, guardian_user_id) DO NOTHING'
+      'INSERT INTO student_guardians (student_id, guardian_user_id, school_id) VALUES (?, ?, ?) ON CONFLICT (student_id, guardian_user_id) DO NOTHING'
     );
-    for (const sid of data.student_ids) await stmt.run(sid, params.id);
+    for (const sid of data.student_ids) await stmt.run(sid, params.id, auth.session.schoolId);
   }
   if (user?.role === 'student' && data.student_id) {
     await db.prepare('UPDATE students SET user_id = NULL WHERE user_id = ?').run(params.id);
@@ -49,9 +55,16 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
 
 export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const auth = await requireRole('superadmin');
+  const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
+
+  // A school admin may only delete accounts within their own school.
+  const target = (await db.prepare('SELECT school_id FROM users WHERE id = ?').get(params.id)) as any;
+  if (!target || target.school_id !== auth.session.schoolId) {
+    return NextResponse.json({ error: 'Account not found.' }, { status: 404 });
+  }
+
   // Every other table with a FK to users(id) must be cleared/unlinked first,
   // or Postgres throws a raw FK-violation 500 when deleting a teacher who has
   // a timetable slot, a staff login, or anyone who ever raised a leave

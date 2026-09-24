@@ -9,16 +9,24 @@ import Modal from '@/components/Modal';
 export default function ExamsPanel({
   detailBase,
   batchFilter,
+  allowCourse = true,
 }: {
   detailBase: string;
   batchFilter?: number | string;
+  // Course-based exams are management-only (server-enforced too) — the
+  // teacher's own exams page passes false so the option isn't offered only
+  // to be rejected.
+  allowCourse?: boolean;
 }) {
   const [exams, setExams] = useState<any[] | null>(null);
   const [batches, setBatches] = useState<any[]>([]);
+  const [courseOptions, setCourseOptions] = useState<string[]>([]);
+  const [subjectOptions, setSubjectOptions] = useState<string[]>([]);
   const [modal, setModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({ name: '', batch_id: '', subject: '', exam_date: '', max_marks: '100' });
+  const [target, setTarget] = useState<'batch' | 'course'>('batch');
+  const [form, setForm] = useState({ name: '', batch_id: '', course: '', subject: '', exam_date: '', max_marks: '100' });
 
   function load() {
     const url = batchFilter ? `/api/exams?batch_id=${batchFilter}` : '/api/exams';
@@ -32,6 +40,12 @@ export default function ExamsPanel({
     fetch('/api/teacher/batches')
       .then((r) => (r.ok ? r.json() : fetch('/api/batches').then((r2) => r2.json())))
       .then((d) => setBatches(d.items || []));
+    fetch('/api/courses')
+      .then((r) => r.json())
+      .then((d) => setCourseOptions((d.items || []).map((c: any) => c.name)));
+    fetch('/api/subjects')
+      .then((r) => r.json())
+      .then((d) => setSubjectOptions((d.items || []).map((s: any) => s.name)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchFilter]);
 
@@ -44,7 +58,8 @@ export default function ExamsPanel({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...form,
-        batch_id: Number(batchFilter || form.batch_id),
+        batch_id: target === 'batch' ? Number(batchFilter || form.batch_id) : null,
+        course: target === 'course' ? form.course : null,
         max_marks: Number(form.max_marks) || 100,
       }),
     });
@@ -52,7 +67,7 @@ export default function ExamsPanel({
     setSaving(false);
     if (!res.ok) return setError(d.error || 'Failed to create exam.');
     setModal(false);
-    setForm({ name: '', batch_id: '', subject: '', exam_date: '', max_marks: '100' });
+    setForm({ name: '', batch_id: '', course: '', subject: '', exam_date: '', max_marks: '100' });
     load();
   }
 
@@ -93,7 +108,7 @@ export default function ExamsPanel({
               {exams.map((e) => (
                 <tr key={e.id} className="border-b border-borderLight last:border-0">
                   <td className="px-4 py-2.5 font-medium text-text">{e.name}</td>
-                  <td className="px-4 py-2.5">{e.batch_name}</td>
+                  <td className="px-4 py-2.5">{e.batch_name || (e.course ? `Course: ${e.course}` : '-')}</td>
                   <td className="px-4 py-2.5">{e.subject || '-'}</td>
                   <td className="px-4 py-2.5">{e.exam_date || '-'}</td>
                   <td className="px-4 py-2.5">{e.max_marks}</td>
@@ -131,31 +146,69 @@ export default function ExamsPanel({
             />
           </div>
           {!batchFilter && (
-            <div>
-              <label className="label">Batch</label>
-              <select
-                className="input"
-                required
-                value={form.batch_id}
-                onChange={(e) => setForm({ ...form, batch_id: e.target.value })}
-              >
-                <option value="">Select batch</option>
-                {batches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <>
+              {allowCourse && (
+                <div>
+                  <label className="label">Target</label>
+                  <select
+                    className="input"
+                    value={target}
+                    onChange={(e) => setTarget(e.target.value as 'batch' | 'course')}
+                  >
+                    <option value="batch">Batch</option>
+                    <option value="course">Course</option>
+                  </select>
+                </div>
+              )}
+              {target === 'batch' ? (
+                <div>
+                  <label className="label">Batch</label>
+                  <select
+                    className="input"
+                    required
+                    value={form.batch_id}
+                    onChange={(e) => setForm({ ...form, batch_id: e.target.value })}
+                  >
+                    <option value="">Select batch</option>
+                    {batches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="label">Course</label>
+                  <select
+                    className="input"
+                    required
+                    value={form.course}
+                    onChange={(e) => setForm({ ...form, course: e.target.value })}
+                  >
+                    <option value="">Select course</option>
+                    {courseOptions.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-textSecondary mt-1">Shows every student enrolled directly in this course (not via a batch).</p>
+                </div>
+              )}
+            </>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Subject</label>
-              <input
-                className="input"
-                value={form.subject}
-                onChange={(e) => setForm({ ...form, subject: e.target.value })}
-              />
+              <select className="input" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })}>
+                <option value="">Select subject</option>
+                {subjectOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="label">Exam date</label>

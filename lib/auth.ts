@@ -7,13 +7,18 @@ const JWT_SECRET = new TextEncoder().encode(
 );
 export const COOKIE_NAME = 'sym_token';
 
-export type Role = 'superadmin' | 'management' | 'teacher' | 'guardian' | 'student';
+export type Role = 'superadmin' | 'management' | 'teacher' | 'guardian' | 'student' | 'staff_admin';
 
 export interface SessionUser {
   id: number;
   username: string;
   name: string;
   role: Role;
+  // The school (tenant) this account belongs to. Every role except the
+  // platform Owner (role='superadmin', schoolId=null) belongs to exactly one
+  // school, and every tenant-data query must be scoped to it. The Owner has
+  // no schoolId — they manage the `schools` list itself, not any school's data.
+  schoolId: number | null;
 }
 
 export async function signSession(user: SessionUser): Promise<string> {
@@ -48,9 +53,10 @@ export async function getSessionFromRequest(req: NextRequest): Promise<SessionUs
 }
 
 export const homeForRole: Record<Role, string> = {
-  superadmin: '/dashboard',
+  superadmin: '/schools',
   management: '/dashboard',
   teacher: '/teacher',
   guardian: '/guardian',
   student: '/student',
+  staff_admin: '/staff-admin',
 };

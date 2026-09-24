@@ -18,12 +18,12 @@ export async function POST(req: NextRequest) {
   if (!owns) return NextResponse.json({ error: 'Not authorized for this batch.' }, { status: 403 });
 
   const stmt = db.prepare(
-    `INSERT INTO attendance (batch_id, student_id, date, status, marked_by) VALUES (@batch_id, @student_id, @date, @status, @marked_by)
+    `INSERT INTO attendance (batch_id, student_id, date, status, marked_by, school_id) VALUES (@batch_id, @student_id, @date, @status, @marked_by, @school_id)
      ON CONFLICT(batch_id, student_id, date) DO UPDATE SET status = excluded.status, marked_by = excluded.marked_by`
   );
   const tx = db.transaction(async (recs: any[]) => {
     for (const r of recs) {
-      await stmt.run({ batch_id, student_id: r.student_id, date, status: r.status, marked_by: auth.session.id });
+      await stmt.run({ batch_id, student_id: r.student_id, date, status: r.status, marked_by: auth.session.id, school_id: auth.session.schoolId });
     }
   });
   await tx(records);

@@ -6,7 +6,7 @@ export async function GET() {
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  const items = await db.prepare('SELECT * FROM branches ORDER BY is_main DESC, name ASC').all();
+  const items = await db.prepare('SELECT * FROM branches WHERE school_id = ? ORDER BY is_main DESC, name ASC').all(auth.session.schoolId);
   return NextResponse.json({ items });
 }
 
@@ -18,15 +18,15 @@ export async function POST(req: NextRequest) {
   const db = getDb();
 
   if (data.is_main) {
-    await db.prepare('UPDATE branches SET is_main = 0').run();
+    await db.prepare('UPDATE branches SET is_main = 0 WHERE school_id = ?').run(auth.session.schoolId);
   }
 
   const result = await db
     .prepare(
-      `INSERT INTO branches (name, address, contact_mobile, contact_email, is_main, remarks)
-       VALUES (?, ?, ?, ?, ?, ?)`
+      `INSERT INTO branches (name, address, contact_mobile, contact_email, is_main, remarks, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(data.name, data.address || null, data.contact_mobile || null, data.contact_email || null, data.is_main ? 1 : 0, data.remarks || null);
+    .run(data.name, data.address || null, data.contact_mobile || null, data.contact_email || null, data.is_main ? 1 : 0, data.remarks || null, auth.session.schoolId);
 
   return NextResponse.json({ id: result.lastInsertRowid });
 }

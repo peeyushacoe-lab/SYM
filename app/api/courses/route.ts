@@ -8,8 +8,8 @@ export async function GET(req: NextRequest) {
   const search = req.nextUrl.searchParams.get('search') || '';
   const db = getDb();
   const items = search
-    ? await db.prepare('SELECT * FROM courses WHERE name ILIKE ? ORDER BY name').all(`%${search}%`)
-    : await db.prepare('SELECT * FROM courses ORDER BY name').all();
+    ? await db.prepare('SELECT * FROM courses WHERE school_id = ? AND name ILIKE ? ORDER BY name').all(auth.session.schoolId, `%${search}%`)
+    : await db.prepare('SELECT * FROM courses WHERE school_id = ? ORDER BY name').all(auth.session.schoolId);
   return NextResponse.json({ items });
 }
 
@@ -21,12 +21,13 @@ export async function POST(req: NextRequest) {
   const db = getDb();
   try {
     const result = await db
-      .prepare('INSERT INTO courses (name, fee, duration, remarks) VALUES (@name, @fee, @duration, @remarks)')
+      .prepare('INSERT INTO courses (name, fee, duration, remarks, school_id) VALUES (@name, @fee, @duration, @remarks, @school_id)')
       .run({
         name: String(data.name).trim(),
         fee: Number(data.fee) || 0,
         duration: data.duration || null,
         remarks: data.remarks || null,
+        school_id: auth.session.schoolId,
       });
     return NextResponse.json({ id: result.lastInsertRowid });
   } catch (e: any) {

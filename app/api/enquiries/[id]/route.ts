@@ -11,9 +11,10 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   await db.prepare(
     `UPDATE enquiries SET student_name=@student_name, mobile=@mobile, course_interested=@course_interested,
      qualification=@qualification, address=@address, enquiry_date=@enquiry_date, follow_up_date=@follow_up_date,
-     status=@status, remarks=@remarks WHERE id=@id`
+     status=@status, remarks=@remarks WHERE id=@id AND school_id=@school_id`
   ).run({
     id: params.id,
+    school_id: auth.session.schoolId,
     student_name: data.student_name,
     mobile: data.mobile || null,
     course_interested: data.course_interested || null,
@@ -32,6 +33,6 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  await db.prepare('DELETE FROM enquiries WHERE id=?').run(params.id);
+  await db.prepare('DELETE FROM enquiries WHERE id=? AND school_id=?').run(params.id, auth.session.schoolId);
   return NextResponse.json({ ok: true });
 }

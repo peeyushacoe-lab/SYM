@@ -10,8 +10,9 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   if (!data.name) return NextResponse.json({ error: 'Course name is required.' }, { status: 400 });
   const db = getDb();
   try {
-    await db.prepare('UPDATE courses SET name=@name, fee=@fee, duration=@duration, remarks=@remarks WHERE id=@id').run({
+    await db.prepare('UPDATE courses SET name=@name, fee=@fee, duration=@duration, remarks=@remarks WHERE id=@id AND school_id=@school_id').run({
       id: params.id,
+      school_id: auth.session.schoolId,
       name: String(data.name).trim(),
       fee: Number(data.fee) || 0,
       duration: data.duration || null,
@@ -31,6 +32,6 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const db = getDb();
-  await db.prepare('DELETE FROM courses WHERE id=?').run(params.id);
+  await db.prepare('DELETE FROM courses WHERE id=? AND school_id=?').run(params.id, auth.session.schoolId);
   return NextResponse.json({ ok: true });
 }

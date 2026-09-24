@@ -8,6 +8,11 @@ function currentMonth() {
   return new Date().toISOString().slice(0, 7);
 }
 
+function daysInMonth(month: string): number {
+  const [y, m] = month.split('-').map(Number);
+  return new Date(y, m, 0).getDate();
+}
+
 const emptyRun = { staff_id: '', basic_salary: '', allowances: '', deductions: '', remarks: '' };
 const emptyPay = { payment_date: new Date().toISOString().slice(0, 10), payment_mode: 'Bank Transfer' };
 
@@ -20,6 +25,8 @@ export default function PayrollPage() {
   const [genForm, setGenForm] = useState(emptyRun);
   const [savingGen, setSavingGen] = useState(false);
   const [genError, setGenError] = useState('');
+  const [calcNote, setCalcNote] = useState('');
+  const [calculating, setCalculating] = useState(false);
 
   const [payModal, setPayModal] = useState(false);
   const [payingRun, setPayingRun] = useState<any | null>(null);
@@ -38,13 +45,38 @@ export default function PayrollPage() {
 
   function openGenModal() {
     setGenError('');
+    setCalcNote('');
     setGenForm(emptyRun);
     setGenModal(true);
   }
 
   function onSelectStaff(id: string) {
     const s = staff.find((x) => String(x.id) === id);
+    setCalcNote('');
     setGenForm({ ...genForm, staff_id: id, basic_salary: s ? String(s.salary || 0) : '' });
+  }
+
+  // Pulls this staff member's Absent days for the selected month from the
+  // Staff Attendance grid, and deducts salary/daysInMonth for each one —
+  // Leave and Holiday days are unaffected, only Absent reduces pay.
+  async function calcFromAttendance() {
+    if (!genForm.staff_id) { setGenError('Select a staff member first.'); return; }
+    setCalculating(true);
+    setGenError('');
+    try {
+      const res = await fetch(`/api/staff-attendance?month=${month}`);
+      const d = await res.json();
+      const records: any[] = d.records || [];
+      const absentDays = records.filter((r) => String(r.staff_id) === String(genForm.staff_id) && r.status === 'Absent').length;
+      const days = daysInMonth(month);
+      const basic = Number(genForm.basic_salary) || 0;
+      const perDay = days ? basic / days : 0;
+      const deduction = Math.round(perDay * absentDays);
+      setGenForm({ ...genForm, deductions: String(deduction) });
+      setCalcNote(`${absentDays} absent day(s) in ${month} (${days} days) — Rs. ${perDay.toFixed(0)}/day → Rs. ${deduction} deducted.`);
+    } finally {
+      setCalculating(false);
+    }
   }
 
   async function handleGenerate(e: React.FormEvent) {
@@ -188,6 +220,17 @@ export default function PayrollPage() {
               <label className="label">Deductions</label>
               <input type="number" min={0} className="input" value={genForm.deductions} onChange={(e) => setGenForm({ ...genForm, deductions: e.target.value })} />
             </div>
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={calcFromAttendance}
+              disabled={calculating || !genForm.staff_id}
+              className="btn btn-outline text-xs !py-1.5"
+            >
+              {calculating ? 'Calculating...' : 'Calculate deduction from attendance'}
+            </button>
+            {calcNote && <p className="text-[11px] text-textSecondary mt-1.5">{calcNote}</p>}
           </div>
           <div>
             <label className="label">Remarks</label>

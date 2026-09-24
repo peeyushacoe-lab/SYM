@@ -3,5 +3,5 @@
 import ExamsPanel from '@/components/portal/ExamsPanel';
 
 export default function TeacherExamsPage() {
-  return <ExamsPanel detailBase="/teacher/exams" />;
+  return <ExamsPanel detailBase="/teacher/exams" allowCourse={false} />;
 }

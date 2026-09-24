@@ -17,8 +17,8 @@ export async function GET(req: NextRequest) {
         WHERE sg.student_id = s.id LIMIT 1) as guardian_mobile
     FROM fees f LEFT JOIN students s ON f.student_id = s.id
     LEFT JOIN batches b ON s.batch_id = b.id
-    WHERE 1=1`;
-  const params: any[] = [];
+    WHERE f.school_id = ?`;
+  const params: any[] = [auth.session.schoolId];
   if (dueOnly) query += ' AND f.remaining_due > 0';
   if (studentId) {
     query += ' AND f.student_id = ?';
@@ -47,13 +47,15 @@ export async function POST(req: NextRequest) {
   const remainingDue = Math.max(courseFee - amountPaid, 0);
   const db = getDb();
   // Default the fee type from the student's assigned fee plan
-  const student = await db.prepare('SELECT fee_type FROM students WHERE id = ?').get(data.student_id) as any;
+  const student = await db.prepare('SELECT fee_type FROM students WHERE id = ? AND school_id = ?').get(data.student_id, auth.session.schoolId) as any;
+  if (!student) return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
   const result = await db
     .prepare(
-      `INSERT INTO fees (student_id, course_fee, amount_paid, remaining_due, payment_date, payment_mode, receipt_number, due_date, remarks, fee_type)
-       VALUES (@student_id, @course_fee, @amount_paid, @remaining_due, @payment_date, @payment_mode, @receipt_number, @due_date, @remarks, @fee_type)`
+      `INSERT INTO fees (student_id, course_fee, amount_paid, remaining_due, payment_date, payment_mode, receipt_number, due_date, remarks, fee_type, school_id)
+       VALUES (@student_id, @course_fee, @amount_paid, @remaining_due, @payment_date, @payment_mode, @receipt_number, @due_date, @remarks, @fee_type, @school_id)`
     )
     .run({
+      school_id: auth.session.schoolId,
       student_id: data.student_id,
       fee_type: data.fee_type || student?.fee_type || 'CourseWise',
       course_fee: courseFee,

@@ -8,8 +8,8 @@ export async function GET(req: NextRequest) {
   const search = req.nextUrl.searchParams.get('search') || '';
   const status = req.nextUrl.searchParams.get('status') || '';
   const db = getDb();
-  let query = 'SELECT * FROM enquiries WHERE 1=1';
-  const params: any[] = [];
+  let query = 'SELECT * FROM enquiries WHERE school_id = ?';
+  const params: any[] = [auth.session.schoolId];
   if (search) {
     query += ' AND (student_name ILIKE ? OR mobile ILIKE ? OR course_interested ILIKE ?)';
     params.push(`%${search}%`, `%${search}%`, `%${search}%`);
@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
   }
   const result = await db
     .prepare(
-      `INSERT INTO enquiries (student_name, mobile, course_interested, qualification, address, enquiry_date, follow_up_date, status, remarks)
-       VALUES (@student_name, @mobile, @course_interested, @qualification, @address, @enquiry_date, @follow_up_date, @status, @remarks)`
+      `INSERT INTO enquiries (student_name, mobile, course_interested, qualification, address, enquiry_date, follow_up_date, status, remarks, school_id)
+       VALUES (@student_name, @mobile, @course_interested, @qualification, @address, @enquiry_date, @follow_up_date, @status, @remarks, @school_id)`
     )
     .run({
       student_name: data.student_name,
@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
       follow_up_date: followUp,
       status: data.status || 'Pending',
       remarks: data.remarks || null,
+      school_id: auth.session.schoolId,
     });
   return NextResponse.json({ id: result.lastInsertRowid });
 }

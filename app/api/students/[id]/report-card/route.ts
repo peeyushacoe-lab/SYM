@@ -16,6 +16,12 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
     }
   } else if (auth.session.role === 'guardian' && !(await guardianOwnsStudent(auth.session.id, params.id))) {
     return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
+  } else if (auth.session.role === 'management' || auth.session.role === 'teacher') {
+    // studentId here is a raw URL param, not derived from the caller's own
+    // session identity — verify it belongs to the caller's school before
+    // building a report card for it.
+    const owned = await getDb().prepare('SELECT id FROM students WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId);
+    if (!owned) return NextResponse.json({ error: 'Not authorized.' }, { status: 403 });
   }
 
   const student = await getStudentProfile(params.id);

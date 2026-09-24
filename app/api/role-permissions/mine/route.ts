@@ -15,8 +15,8 @@ export async function GET() {
 
   const db = getDb();
   const rows = (await db
-    .prepare('SELECT module_key, can_view, can_edit FROM role_permissions WHERE role = ?')
-    .all(session.role)) as any[];
+    .prepare('SELECT module_key, can_view, can_edit FROM role_permissions WHERE role = ? AND school_id = ?')
+    .all(session.role, session.schoolId)) as any[];
 
   const permissions: Record<string, { can_view: boolean; can_edit: boolean }> = {};
   for (const r of rows) {

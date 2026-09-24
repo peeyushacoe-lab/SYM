@@ -9,7 +9,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   const params = await props.params;
   const db = getDb();
 
-  const query = (await db.prepare('SELECT * FROM queries WHERE id = ?').get(params.id)) as any;
+  const query = (await db.prepare('SELECT * FROM queries WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId)) as any;
   if (!query) return NextResponse.json({ error: 'Query not found.' }, { status: 404 });
 
   const data = await req.json();

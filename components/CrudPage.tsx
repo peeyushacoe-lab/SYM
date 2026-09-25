@@ -291,7 +291,7 @@ export default function CrudPage({
               if (f.hideOnEdit && editing) return null;
               if (f.showIf && !f.showIf(form)) return null;
               return (
-              <div key={f.name} className={f.span === 2 ? 'col-span-2' : 'col-span-1'}>
+              <div key={f.name} className={`min-w-0 ${f.span === 2 ? 'col-span-2' : 'col-span-1'}`}>
                 <label className="label">
                   {f.label} {f.required && <span className="text-danger">*</span>}
                 </label>

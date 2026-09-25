@@ -14,6 +14,24 @@ html {
   width: 100%;
 }
 
+/* A CSS Grid item's default min-width is "auto", meaning it refuses to
+   shrink below its own content's intrinsic minimum size. Native form
+   controls like <input type="date"> and <select> have a real minimum
+   rendered width (space for the mm/dd/yyyy text + calendar icon, or the
+   longest option text) that's often wider than a 2-column form grid's
+   column on a phone screen — so instead of respecting the column and
+   wrapping/shrinking, the field spills sideways into the next column.
+   That's what "the Salary field and Joining date field are overlapping"
+   actually is, and it hits every popup form in the app (CrudPage's shared
+   grid plus ~20 hand-rolled ones in Payroll, Settings, the student profile,
+   Visitors, Branches, Alumni, Library, Hostel, Transport, Timetable, etc.)
+   since they all use the same `grid grid-cols-1 sm:grid-cols-2` pattern.
+   Fixing it once here, globally, closes it everywhere at once instead of
+   editing every form's markup individually. */
+.grid > * {
+  min-width: 0;
+}
+
 body {
   font-family: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: #0c1c2e;

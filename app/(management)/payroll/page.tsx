@@ -207,16 +207,16 @@ export default function PayrollPage() {
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
+          <div className="flex flex-wrap -mx-1.5">
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/3">
               <label className="label">Basic salary</label>
               <input type="number" min={0} className="input" value={genForm.basic_salary} onChange={(e) => setGenForm({ ...genForm, basic_salary: e.target.value })} />
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/3">
               <label className="label">Allowances</label>
               <input type="number" min={0} className="input" value={genForm.allowances} onChange={(e) => setGenForm({ ...genForm, allowances: e.target.value })} />
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/3">
               <label className="label">Deductions</label>
               <input type="number" min={0} className="input" value={genForm.deductions} onChange={(e) => setGenForm({ ...genForm, deductions: e.target.value })} />
             </div>

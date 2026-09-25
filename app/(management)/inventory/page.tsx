@@ -193,12 +193,12 @@ export default function InventoryPage() {
             <label className="label">Item name *</label>
             <input className="input" required value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-wrap -mx-1.5">
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Category</label>
               <input className="input" value={itemForm.category} onChange={(e) => setItemForm({ ...itemForm, category: e.target.value })} />
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Unit</label>
               <input className="input" placeholder="pcs, kg, box..." value={itemForm.unit} onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value })} />
             </div>
@@ -209,12 +209,12 @@ export default function InventoryPage() {
               <input type="number" min={0} className="input" value={itemForm.quantity} onChange={(e) => setItemForm({ ...itemForm, quantity: Number(e.target.value) })} />
             </div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-wrap -mx-1.5">
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Unit cost (Rs.)</label>
               <input type="number" min={0} className="input" value={itemForm.unit_cost} onChange={(e) => setItemForm({ ...itemForm, unit_cost: e.target.value })} />
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Reorder level</label>
               <input type="number" min={0} className="input" value={itemForm.reorder_level} onChange={(e) => setItemForm({ ...itemForm, reorder_level: e.target.value })} />
             </div>
@@ -246,15 +246,15 @@ export default function InventoryPage() {
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-wrap -mx-1.5">
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Type *</label>
               <select className="input" value={txnForm.type} onChange={(e) => setTxnForm({ ...txnForm, type: e.target.value })}>
                 <option value="In">Stock in (purchase/return)</option>
                 <option value="Out">Stock out (issue/damage)</option>
               </select>
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Quantity *</label>
               <input type="number" min={1} className="input" required value={txnForm.quantity} onChange={(e) => setTxnForm({ ...txnForm, quantity: e.target.value })} />
             </div>

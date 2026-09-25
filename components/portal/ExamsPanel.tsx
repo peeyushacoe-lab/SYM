@@ -198,8 +198,8 @@ export default function ExamsPanel({
               )}
             </>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-wrap -mx-1.5">
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Subject</label>
               <select className="input" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })}>
                 <option value="">Select subject</option>
@@ -210,7 +210,7 @@ export default function ExamsPanel({
                 ))}
               </select>
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Exam date</label>
               <input
                 type="date"

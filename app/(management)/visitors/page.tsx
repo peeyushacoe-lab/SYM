@@ -103,12 +103,12 @@ export default function VisitorsPage() {
             <label className="label">Visitor name *</label>
             <input className="input" required value={form.visitor_name} onChange={(e) => setForm({ ...form, visitor_name: e.target.value })} />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-wrap -mx-1.5">
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Mobile</label>
               <input className="input" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">To meet</label>
               <input className="input" placeholder="Staff/teacher name" value={form.to_meet} onChange={(e) => setForm({ ...form, to_meet: e.target.value })} />
             </div>

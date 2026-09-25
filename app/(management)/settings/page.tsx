@@ -354,28 +354,28 @@ function UsersTab({ role }: { role: 'teacher' | 'guardian' | 'student' | 'manage
         ) : (
         <form onSubmit={handleSave} className="space-y-4">
           {error && <div className="text-sm text-danger bg-dangerLight border border-dangerBorder rounded-lg px-3 py-2">{error}</div>}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-wrap -mx-1.5">
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Full name *</label>
               <input className="input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Username</label>
               <input className="input" placeholder="Defaults to email below" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Password</label>
               <input className="input" type="password" placeholder="Auto-generated if left blank" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Mobile</label>
               <input className="input" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Email</label>
               <input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
-            <div className="col-span-2 text-[11px] text-on-surface-variant -mt-1">
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full text-[11px] text-on-surface-variant -mt-1">
               Leave username/password blank to auto-generate a login from the email above and email the credentials.
             </div>
           </div>

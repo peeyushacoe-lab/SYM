@@ -139,8 +139,8 @@ export default function RequestsSection({ studentId }: { studentId?: number | st
       <Modal open={leaveModal} onClose={() => setLeaveModal(false)} title="Apply for leave">
         <form onSubmit={submitLeave} className="space-y-4">
           {error && <div className="text-sm text-danger">{error}</div>}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-wrap -mx-1.5">
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">From date</label>
               <input
                 type="date"
@@ -150,7 +150,7 @@ export default function RequestsSection({ studentId }: { studentId?: number | st
                 onChange={(e) => setLeaveForm({ ...leaveForm, from_date: e.target.value })}
               />
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">To date</label>
               <input
                 type="date"

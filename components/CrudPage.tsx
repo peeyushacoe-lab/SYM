@@ -286,12 +286,26 @@ export default function CrudPage({
           {error && (
             <div className="text-sm text-danger bg-dangerLight border border-dangerBorder rounded-lg px-3 py-2">{error}</div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/*
+            Plain flexbox + explicit margins instead of CSS Grid + `gap`.
+            CSS Grid's row height is auto-computed from each row's tallest
+            item at the moment of layout; on some WebView versions that
+            computation doesn't get invalidated after a late reflow (e.g.
+            the Geist/Material-Symbols web fonts swapping in after the
+            initial paint), so two fields end up sharing the same row
+            box and rendering on top of each other — exactly the
+            "Salary field and Joining date field are overlapping" report.
+            Flexbox with margin-bottom (not `gap`, which has its own patchy
+            history on older WebViews) sizes and spaces every field
+            independently, so there's no shared row measurement to get
+            wrong.
+          */}
+          <div className="flex flex-wrap -mx-1.5">
             {fields.map((f) => {
               if (f.hideOnEdit && editing) return null;
               if (f.showIf && !f.showIf(form)) return null;
               return (
-              <div key={f.name} className={`min-w-0 ${f.span === 2 ? 'col-span-2' : 'col-span-1'}`}>
+              <div key={f.name} className={`min-w-0 box-border px-1.5 mb-4 ${f.span === 2 ? 'w-full' : 'w-full sm:w-1/2'}`}>
                 <label className="label">
                   {f.label} {f.required && <span className="text-danger">*</span>}
                 </label>

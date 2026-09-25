@@ -208,18 +208,18 @@ export default function HostelPage() {
 
       <Modal open={roomModal} onClose={() => setRoomModal(false)} title={editingRoom ? 'Edit room' : 'New room'}>
         <form onSubmit={handleSaveRoom} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-wrap -mx-1.5">
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Room number *</label>
               <input className="input" required value={roomForm.room_number} onChange={(e) => setRoomForm({ ...roomForm, room_number: e.target.value })} />
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Block</label>
               <input className="input" value={roomForm.block} onChange={(e) => setRoomForm({ ...roomForm, block: e.target.value })} />
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-wrap -mx-1.5">
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Room type</label>
               <select className="input" value={roomForm.room_type} onChange={(e) => setRoomForm({ ...roomForm, room_type: e.target.value })}>
                 <option value="Single">Single</option>
@@ -227,7 +227,7 @@ export default function HostelPage() {
                 <option value="Dormitory">Dormitory</option>
               </select>
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Capacity *</label>
               <input type="number" min={1} className="input" required value={roomForm.capacity} onChange={(e) => setRoomForm({ ...roomForm, capacity: Number(e.target.value) })} />
             </div>

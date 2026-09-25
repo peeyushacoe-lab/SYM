@@ -116,12 +116,12 @@ export default function LessonPlanPanel({ batchFilter }: { batchFilter?: number 
               </select>
             </div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-wrap -mx-1.5">
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Subject</label>
               <input className="input" required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Planned date</label>
               <input type="date" className="input" value={form.planned_date} onChange={(e) => setForm({ ...form, planned_date: e.target.value })} />
             </div>

@@ -100,8 +100,8 @@ export default function ManagementTimetablePage() {
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-wrap -mx-1.5">
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Start time</label>
               <input
                 type="time"
@@ -111,7 +111,7 @@ export default function ManagementTimetablePage() {
                 onChange={(e) => setForm({ ...form, start_time: e.target.value })}
               />
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">End time</label>
               <input
                 type="time"

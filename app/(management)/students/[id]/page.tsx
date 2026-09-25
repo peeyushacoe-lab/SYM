@@ -421,32 +421,32 @@ export default function StudentProfilePage(props: { params: Promise<{ id: string
               {collect.partialSupported ? ' · partial payment allowed' : ''}
             </div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label className="block">
+          <div className="flex flex-wrap -mx-1.5">
+            <label className="block min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <span className="text-xs text-on-surface-variant">Receipt no</span>
               <input className="input" value={collect.receipt_number || ''} onChange={(e) => setCollect({ ...collect, receipt_number: e.target.value })} />
             </label>
-            <label className="block">
+            <label className="block min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <span className="text-xs text-on-surface-variant">Payment date</span>
               <input type="date" className="input" value={collect.payment_date || ''} onChange={(e) => setCollect({ ...collect, payment_date: e.target.value })} />
             </label>
-            <label className="block">
+            <label className="block min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <span className="text-xs text-on-surface-variant">Period from</span>
               <input type="date" className="input" value={collect.period_from || ''} onChange={(e) => setCollect({ ...collect, period_from: e.target.value })} />
             </label>
-            <label className="block">
+            <label className="block min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <span className="text-xs text-on-surface-variant">Period to</span>
               <input type="date" className="input" value={collect.period_to || ''} onChange={(e) => setCollect({ ...collect, period_to: e.target.value })} />
             </label>
-            <label className="block">
+            <label className="block min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <span className="text-xs text-on-surface-variant">Paid amount</span>
               <input type="number" step="any" required className="input" value={collect.amount_paid ?? ''} onChange={(e) => setCollect({ ...collect, amount_paid: e.target.value })} />
             </label>
-            <label className="block">
+            <label className="block min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <span className="text-xs text-on-surface-variant">Discount</span>
               <input type="number" step="any" className="input" value={collect.discount ?? 0} onChange={(e) => setCollect({ ...collect, discount: e.target.value })} />
             </label>
-            <label className="block col-span-2">
+            <label className="block min-w-0 box-border px-1.5 mb-4 w-full">
               <span className="text-xs text-on-surface-variant">Payment mode</span>
               <select className="input" value={collect.payment_mode || 'Cash'} onChange={(e) => setCollect({ ...collect, payment_mode: e.target.value })}>
                 {['Cash', 'UPI', 'Bank Transfer', 'Cheque'].map((m) => (
@@ -454,7 +454,7 @@ export default function StudentProfilePage(props: { params: Promise<{ id: string
                 ))}
               </select>
             </label>
-            <label className="block col-span-2">
+            <label className="block min-w-0 box-border px-1.5 mb-4 w-full">
               <span className="text-xs text-on-surface-variant">Remarks</span>
               <input className="input" value={collect.remarks || ''} onChange={(e) => setCollect({ ...collect, remarks: e.target.value })} />
             </label>
@@ -502,12 +502,12 @@ export default function StudentProfilePage(props: { params: Promise<{ id: string
               ))}
             </select>
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label className="block">
+          <div className="flex flex-wrap -mx-1.5">
+            <label className="block min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <span className="text-xs text-on-surface-variant">From</span>
               <input type="date" className="input" value={plan.from_date || ''} onChange={(e) => setPlan({ ...plan, from_date: e.target.value })} />
             </label>
-            <label className="block">
+            <label className="block min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <span className="text-xs text-on-surface-variant">Fee amount</span>
               <input type="number" step="any" required className="input" value={plan.amount ?? ''} onChange={(e) => setPlan({ ...plan, amount: e.target.value })} />
             </label>

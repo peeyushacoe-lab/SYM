@@ -159,22 +159,22 @@ export default function AlumniPage() {
               )}
             </div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-wrap -mx-1.5">
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Name *</label>
               <input className="input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Course</label>
               <input className="input" value={form.course} onChange={(e) => setForm({ ...form, course: e.target.value })} />
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-wrap -mx-1.5">
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Graduation year</label>
               <input className="input" placeholder="e.g. 2023" value={form.graduation_year} onChange={(e) => setForm({ ...form, graduation_year: e.target.value })} />
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Mobile</label>
               <input className="input" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
             </div>
@@ -183,12 +183,12 @@ export default function AlumniPage() {
             <label className="label">Email</label>
             <input className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-wrap -mx-1.5">
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Current occupation</label>
               <input className="input" value={form.current_occupation} onChange={(e) => setForm({ ...form, current_occupation: e.target.value })} />
             </div>
-            <div>
+            <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">
               <label className="label">Current organization</label>
               <input className="input" value={form.current_organization} onChange={(e) => setForm({ ...form, current_organization: e.target.value })} />
             </div>

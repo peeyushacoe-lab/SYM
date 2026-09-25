@@ -117,31 +117,31 @@ export default function AppShell({
       )}
 
       <main className="flex-1 min-w-0 flex flex-col">
-        <header className="glass-header px-5 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] flex items-center justify-between sticky top-0 z-40">
-          <div className="flex items-center gap-2">
+        <header className="glass-header px-3 sm:px-5 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] flex items-center justify-between gap-2 sticky top-0 z-40">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <button
-              className="md:hidden text-tertiary p-1.5 hover:bg-white/50 rounded-lg transition-all min-w-[40px] min-h-[40px] flex items-center justify-center"
+              className="md:hidden shrink-0 text-tertiary p-1.5 hover:bg-white/50 rounded-lg transition-all min-w-[40px] min-h-[40px] flex items-center justify-center"
               onClick={() => setMobileOpen(true)}
               aria-label="Open menu"
             >
               <span className="material-symbols-outlined">menu</span>
             </button>
-            <div className="text-[16px] font-semibold text-on-surface">{title}</div>
+            <div className="text-[16px] font-semibold text-on-surface truncate min-w-0">{title}</div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <button
               onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
-              className="text-[11px] font-medium text-on-surface-variant hover:text-tertiary border border-outline-variant/50 rounded-lg px-2 py-1 transition-colors"
+              className="shrink-0 text-[11px] font-medium text-on-surface-variant hover:text-tertiary border border-outline-variant/50 rounded-lg px-2 py-1 transition-colors"
               title="Switch language"
             >
               {lang === 'en' ? 'EN' : 'हिं'}
             </button>
             {role === 'management' && <NotificationBell />}
-            <div className="text-right hidden sm:block">
+            <div className="text-right hidden sm:block shrink-0">
               <div className="text-[13px] font-medium text-on-surface">{name}</div>
               <div className="text-[11px] text-on-surface-variant">{t(roleLabel[role] || role)}</div>
             </div>
-            <div className="w-9 h-9 rounded-full bg-tertiary text-white flex items-center justify-center text-xs font-semibold shadow-soft border border-white">
+            <div className="w-9 h-9 rounded-full bg-tertiary text-white flex items-center justify-center text-xs font-semibold shadow-soft border border-white shrink-0">
               {initials || '?'}
             </div>
           </div>

@@ -4,6 +4,16 @@
 
 /* ---------- Luminous Strata foundation ---------- */
 
+html {
+  /* Belt-and-braces against any single element (a wide table, a long
+     unbroken string, a mis-sized popup) forcing the whole page to scroll
+     sideways on a phone — that's what makes fixed/sticky headers and
+     absolutely-positioned menus appear to "overlap" content, since the
+     user has silently scrolled the viewport out from under them. */
+  overflow-x: hidden;
+  width: 100%;
+}
+
 body {
   font-family: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: #0c1c2e;
@@ -15,6 +25,8 @@ body {
     radial-gradient(at 0% 100%, hsla(210, 100%, 97%, 1) 0px, transparent 50%);
   background-attachment: fixed;
   min-height: 100vh;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 /* Material Symbols */

@@ -8,8 +8,22 @@ export async function GET(req: NextRequest) {
   const search = req.nextUrl.searchParams.get('search') || '';
   const db = getDb();
   const items = search
-    ? await db.prepare('SELECT * FROM courses WHERE school_id = ? AND name ILIKE ? ORDER BY name').all(auth.session.schoolId, `%${search}%`)
-    : await db.prepare('SELECT * FROM courses WHERE school_id = ? ORDER BY name').all(auth.session.schoolId);
+    ? await db
+        .prepare(
+          `SELECT c.*, COUNT(s.id) as student_count FROM courses c
+           LEFT JOIN students s ON s.course = c.name AND s.school_id = c.school_id
+           WHERE c.school_id = ? AND c.name ILIKE ?
+           GROUP BY c.id ORDER BY c.name`
+        )
+        .all(auth.session.schoolId, `%${search}%`)
+    : await db
+        .prepare(
+          `SELECT c.*, COUNT(s.id) as student_count FROM courses c
+           LEFT JOIN students s ON s.course = c.name AND s.school_id = c.school_id
+           WHERE c.school_id = ?
+           GROUP BY c.id ORDER BY c.name`
+        )
+        .all(auth.session.schoolId);
   return NextResponse.json({ items });
 }
 

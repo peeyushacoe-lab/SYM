@@ -54,8 +54,8 @@ export async function POST(req: NextRequest) {
 
   const result = await db
     .prepare(
-      `INSERT INTO staff (name, mobile, designation, salary, joining_date, address, remarks, staff_type, email, batch_id, school_id)
-       VALUES (@name, @mobile, @designation, @salary, @joining_date, @address, @remarks, @staff_type, @email, @batch_id, @school_id)`
+      `INSERT INTO staff (name, mobile, designation, salary, joining_date, address, remarks, staff_type, email, batch_id, staff_number, school_id)
+       VALUES (@name, @mobile, @designation, @salary, @joining_date, @address, @remarks, @staff_type, @email, @batch_id, @staff_number, @school_id)`
     )
     .run({
       school_id: auth.session.schoolId,
@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
       staff_type: staffType,
       email: data.email || null,
       batch_id: batchId,
+      staff_number: data.staff_number || null,
     });
   const staffId = result.lastInsertRowid as number;
 

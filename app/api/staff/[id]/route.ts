@@ -50,7 +50,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   }
 
   await db.prepare(
-    'UPDATE staff SET name=@name, mobile=@mobile, designation=@designation, salary=@salary, joining_date=@joining_date, address=@address, remarks=@remarks, staff_type=@staff_type, email=@email, batch_id=@batch_id WHERE id=@id AND school_id=@school_id'
+    'UPDATE staff SET name=@name, mobile=@mobile, designation=@designation, salary=@salary, joining_date=@joining_date, address=@address, remarks=@remarks, staff_type=@staff_type, email=@email, batch_id=@batch_id, staff_number=@staff_number WHERE id=@id AND school_id=@school_id'
   ).run({
     id: params.id,
     school_id: auth.session.schoolId,
@@ -64,6 +64,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
     staff_type: staffType,
     email: data.email || existing.email || null,
     batch_id: batchId,
+    staff_number: data.staff_number || existing.staff_number || null,
   });
 
   if (Array.isArray(data.subject_ids)) {

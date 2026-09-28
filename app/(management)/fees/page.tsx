@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import CrudPage from '@/components/CrudPage';
 import Badge from '@/components/Badge';
 import FeeShareActions from '@/components/FeeShareActions';
+import RecordPaymentWizard from '@/components/RecordPaymentWizard';
 
 function formatCurrency(n: number) {
   return `Rs. ${Number(n || 0).toLocaleString('en-IN')}`;
@@ -64,6 +65,8 @@ function printReceipt(row: any) {
 export default function FeesPage() {
   const [studentOptions, setStudentOptions] = useState<{ value: any; label: string }[]>([]);
   const [month, setMonth] = useState('');
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [reloadSignal, setReloadSignal] = useState(0);
 
   useEffect(() => {
     fetch('/api/students')
@@ -74,18 +77,26 @@ export default function FeesPage() {
   }, []);
 
   return (
+    <>
     <CrudPage
       title="Fee collection"
       subtitle="Record and manage student fee payments"
       endpoint="/api/fees"
       searchPlaceholder="Search by student name or mobile..."
       addLabel="Record payment"
+      canAdd={false}
+      reloadSignal={reloadSignal}
       extraQuery={month ? `month=${month}` : ''}
       headerActions={
-        <a href={`/api/export?type=fees${month ? `&month=${month}` : ''}`} className="btn btn-outline">
-          <span className="material-symbols-outlined text-[18px]">download</span>
-          Export Excel
-        </a>
+        <>
+          <button onClick={() => setWizardOpen(true)} className="btn btn-primary">
+            + Record payment
+          </button>
+          <a href={`/api/export?type=fees${month ? `&month=${month}` : ''}`} className="btn btn-outline">
+            <span className="material-symbols-outlined text-[18px]">download</span>
+            Export Excel
+          </a>
+        </>
       }
       extraFilters={
         <input
@@ -168,5 +179,14 @@ export default function FeesPage() {
         </div>
       )}
     />
+    <RecordPaymentWizard
+      open={wizardOpen}
+      onClose={() => setWizardOpen(false)}
+      onDone={() => {
+        setWizardOpen(false);
+        setReloadSignal((n) => n + 1);
+      }}
+    />
+    </>
   );
 }

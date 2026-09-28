@@ -7,6 +7,7 @@ import StaffAttendanceGrid from '@/components/StaffAttendanceGrid';
 export default function StaffPage() {
   const [batchOptions, setBatchOptions] = useState<{ value: any; label: string }[]>([]);
   const [allSubjects, setAllSubjects] = useState<{ id: number; batch_id: number; name: string }[]>([]);
+  const [staffCount, setStaffCount] = useState(0);
 
   useEffect(() => {
     fetch('/api/batches')
@@ -15,9 +16,17 @@ export default function StaffPage() {
     fetch('/api/subjects')
       .then((r) => r.json())
       .then((d) => setAllSubjects(d.items || []));
+    fetch('/api/staff')
+      .then((r) => r.json())
+      .then((d) => setStaffCount((d.items || []).length));
   }, []);
 
   const noBatches = batchOptions.length === 0;
+  // Simple school-wide unique number, same <year><3-digit position> style as
+  // the student roll number, but not scoped to a batch (Administrators have
+  // none, and an instructor's number shouldn't reset just because they're on
+  // a smaller batch). Still editable afterwards.
+  const suggestedStaffNumber = `${new Date().getFullYear()}${String(staffCount + 1).padStart(3, '0')}`;
 
   return (
     <div className="space-y-5">
@@ -29,6 +38,7 @@ export default function StaffPage() {
         addLabel="Add staff"
         columns={[
           { key: 'name', label: 'Name' },
+          { key: 'staff_number', label: 'Staff #' },
           {
             key: 'staff_type',
             label: 'Type',
@@ -46,6 +56,12 @@ export default function StaffPage() {
         ]}
         fields={[
           { name: 'name', label: 'Full name', required: true },
+          {
+            name: 'staff_number',
+            label: 'Staff number',
+            defaultValue: suggestedStaffNumber,
+            hint: 'Auto-suggested unique number — edit if you need a different one.',
+          },
           {
             name: 'staff_type',
             label: 'Staff type',

@@ -732,3 +732,12 @@ CREATE TABLE IF NOT EXISTS staff_subjects (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (staff_id, subject_id)
 );
+
+-- Auto-generated identifiers (Sep 2026 change): students get a suggested
+-- roll number of <current year><3-digit position within their batch/course>
+-- (e.g. the 1st student in a batch this year -> 2026001), and staff get a
+-- simple school-wide unique number in the same style. Both are suggestions
+-- computed client-side from existing counts and stored as plain text —
+-- the admin can still edit them before saving, so no DB-level format is
+-- enforced.
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS staff_number TEXT;

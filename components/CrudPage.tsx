@@ -85,6 +85,7 @@ export default function CrudPage({
   extraFilters,
   extraQuery = '',
   headerActions,
+  reloadSignal,
 }: {
   title: string;
   subtitle?: string;
@@ -100,6 +101,10 @@ export default function CrudPage({
   extraFilters?: React.ReactNode;
   extraQuery?: string;
   headerActions?: React.ReactNode;
+  // Bump this (e.g. a counter) from the parent to force a re-fetch of the
+  // list — for flows that add/edit rows through a custom modal outside
+  // CrudPage's own Add/Edit form (see RecordPaymentWizard on the Fees page).
+  reloadSignal?: any;
 }) {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,6 +137,11 @@ export default function CrudPage({
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
   }, [load]);
+
+  useEffect(() => {
+    if (reloadSignal !== undefined) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadSignal]);
 
   // Quick-add support: /page?add=1 opens the add modal immediately
   useEffect(() => {

@@ -6,8 +6,9 @@ import CrudPage from '@/components/CrudPage';
 
 export default function StudentsPage() {
   const [batchOptions, setBatchOptions] = useState<{ value: any; label: string }[]>([]);
-  const [batchMap, setBatchMap] = useState<Record<string, { monthly_fee: number; start_date: string | null }>>({});
+  const [batchMap, setBatchMap] = useState<Record<string, { monthly_fee: number; start_date: string | null; student_count: number }>>({});
   const [courseOptions, setCourseOptions] = useState<string[]>([]);
+  const [courseCountMap, setCourseCountMap] = useState<Record<string, number>>({});
   const [batchFilter, setBatchFilter] = useState('');
   const [courseFilter, setCourseFilter] = useState('');
 
@@ -17,16 +18,35 @@ export default function StudentsPage() {
       .then((d) => {
         const items = d.items || [];
         setBatchOptions(items.map((b: any) => ({ value: b.id, label: b.name })));
-        const map: Record<string, { monthly_fee: number; start_date: string | null }> = {};
+        const map: Record<string, { monthly_fee: number; start_date: string | null; student_count: number }> = {};
         items.forEach((b: any) => {
-          map[String(b.id)] = { monthly_fee: Number(b.monthly_fee) || 0, start_date: b.start_date || null };
+          map[String(b.id)] = {
+            monthly_fee: Number(b.monthly_fee) || 0,
+            start_date: b.start_date || null,
+            student_count: Number(b.student_count) || 0,
+          };
         });
         setBatchMap(map);
       });
     fetch('/api/courses')
       .then((r) => r.json())
-      .then((d) => setCourseOptions((d.items || []).map((c: any) => c.name)));
+      .then((d) => {
+        const items = d.items || [];
+        setCourseOptions(items.map((c: any) => c.name));
+        const map: Record<string, number> = {};
+        items.forEach((c: any) => (map[c.name] = Number(c.student_count) || 0));
+        setCourseCountMap(map);
+      });
   }, []);
+
+  // <current year><3-digit position within the chosen batch/course> — e.g.
+  // the 1st student admitted to a batch this year suggests 2026001. Just a
+  // suggestion filled in when the batch/course is picked; the admin can
+  // still edit it before saving.
+  function suggestRollNumber(existingCount: number) {
+    const year = new Date().getFullYear();
+    return `${year}${String(existingCount + 1).padStart(3, '0')}`;
+  }
 
   const extraQuery = [
     batchFilter ? `batch_id=${batchFilter}` : '',
@@ -149,6 +169,10 @@ export default function StudentsPage() {
           type: 'select',
           options: courseOptions.map((c) => ({ value: c, label: c })),
           showIf: (form) => form.enrollment_type === 'course',
+          // Suggests a roll number of <year><position within this course> —
+          // e.g. the 1st student enrolled in this course this year -> 2026001.
+          // Still editable afterwards.
+          onValueChange: (value) => ({ roll_number: suggestRollNumber(courseCountMap[String(value)] ?? 0) }),
         },
         {
           name: 'batch_id',
@@ -158,11 +182,15 @@ export default function StudentsPage() {
           showIf: (form) => form.enrollment_type !== 'course',
           // Selecting a batch auto-fills its monthly fee into the Monthly-fee
           // field below (only relevant when fee_type is Monthly/Quarterly —
-          // the admin can still edit the amount per student afterwards).
+          // the admin can still edit the amount per student afterwards), and
+          // suggests a roll number of <year><position within this batch>.
           onValueChange: (value, form) => {
             const batch = batchMap[String(value)];
             if (!batch) return;
-            return { batch_monthly_fee: batch.monthly_fee || form.batch_monthly_fee };
+            return {
+              batch_monthly_fee: batch.monthly_fee || form.batch_monthly_fee,
+              roll_number: suggestRollNumber(batch.student_count),
+            };
           },
         },
         {
@@ -222,7 +250,11 @@ export default function StudentsPage() {
           hint: 'On: dues start from when the batch began (e.g. batch started March, student joins September → 7 months due). Off: dues start from this student\'s own admission date instead.',
         },
         { name: 'admission_date', label: 'Admission date', type: 'date' },
-        { name: 'roll_number', label: 'Roll number' },
+        {
+          name: 'roll_number',
+          label: 'Roll number',
+          hint: 'Auto-suggested from the batch/course (year + position) once one is picked above — edit if you need a different number.',
+        },
         { name: 'registration_number', label: 'Registration number' },
         { name: 'aadhaar', label: 'Aadhaar number' },
         {

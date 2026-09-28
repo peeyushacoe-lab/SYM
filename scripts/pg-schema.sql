@@ -629,16 +629,37 @@ UPDATE users SET school_id = 1 WHERE school_id IS NULL AND role != 'superadmin';
 -- one school; unscoped, they'd wrongly stop two different schools from both
 -- having a course called "JEE-MAIN", a "Default Fee" category, or a
 -- 'fee_reminder' SMS template key. Re-scope them to (school_id, <col>).
+-- Each ADD CONSTRAINT is wrapped in an existence check (plain ADD CONSTRAINT
+-- has no IF NOT EXISTS form) so this whole script stays safely re-runnable —
+-- without it, re-running against a database that already has the new
+-- constraint fails outright and aborts every statement after it, including
+-- any newer migration appended below this point.
 ALTER TABLE courses DROP CONSTRAINT IF EXISTS courses_name_key;
-ALTER TABLE courses ADD CONSTRAINT courses_school_name_key UNIQUE (school_id, name);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'courses_school_name_key') THEN
+    ALTER TABLE courses ADD CONSTRAINT courses_school_name_key UNIQUE (school_id, name);
+  END IF;
+END $$;
 ALTER TABLE fee_categories DROP CONSTRAINT IF EXISTS fee_categories_name_key;
-ALTER TABLE fee_categories ADD CONSTRAINT fee_categories_school_name_key UNIQUE (school_id, name);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fee_categories_school_name_key') THEN
+    ALTER TABLE fee_categories ADD CONSTRAINT fee_categories_school_name_key UNIQUE (school_id, name);
+  END IF;
+END $$;
 ALTER TABLE sms_templates DROP CONSTRAINT IF EXISTS sms_templates_key_key;
-ALTER TABLE sms_templates ADD CONSTRAINT sms_templates_school_key_key UNIQUE (school_id, key);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'sms_templates_school_key_key') THEN
+    ALTER TABLE sms_templates ADD CONSTRAINT sms_templates_school_key_key UNIQUE (school_id, key);
+  END IF;
+END $$;
 -- role_permissions' constraint has the same problem (two schools couldn't
 -- both have a 'teacher'/'attendance' row) — re-scope the same way.
 ALTER TABLE role_permissions DROP CONSTRAINT IF EXISTS role_permissions_role_module_key_key;
-ALTER TABLE role_permissions ADD CONSTRAINT role_permissions_school_role_module_key UNIQUE (school_id, role, module_key);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'role_permissions_school_role_module_key') THEN
+    ALTER TABLE role_permissions ADD CONSTRAINT role_permissions_school_role_module_key UNIQUE (school_id, role, module_key);
+  END IF;
+END $$;
 
 -- ============================================================
 -- Subjects master list, staff type/login, and course-based exams.
@@ -667,3 +688,47 @@ ALTER TABLE staff ADD COLUMN IF NOT EXISTS email TEXT;
 -- existing NOT NULL default for pre-existing rows.
 ALTER TABLE exams ALTER COLUMN batch_id DROP NOT NULL;
 ALTER TABLE exams ADD COLUMN IF NOT EXISTS course TEXT;
+
+-- ============================================================
+-- Batch-scoped subjects + instructor batch/subject assignment, and
+-- optional account creation for Staff/Students (Sep 2026 change).
+--
+-- Subjects used to be one shared list per school (e.g. a single "Physics").
+-- They now belong to a specific batch, so Batch A's Physics and Batch B's
+-- Physics are separate rows — this lets each batch have its own subject
+-- list (11th standard: 2 subjects, 12th standard: 3 subjects, etc.).
+-- batch_id is nullable at the DB level only to avoid breaking any subject
+-- rows created before this change; the app requires it for every new one.
+-- ============================================================
+ALTER TABLE subjects ADD COLUMN IF NOT EXISTS batch_id INTEGER REFERENCES batches(id);
+
+-- Re-scope the old (school_id, name) uniqueness to (school_id, batch_id,
+-- name) so the same subject name can exist under different batches. Drops
+-- whichever unique constraint Postgres auto-named for the original
+-- table-level UNIQUE (school_id, name) rather than guessing the name.
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN SELECT conname FROM pg_constraint WHERE conrelid = 'subjects'::regclass AND contype = 'u' LOOP
+    EXECUTE 'ALTER TABLE subjects DROP CONSTRAINT ' || quote_ident(r.conname);
+  END LOOP;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'subjects_school_batch_name_key') THEN
+    ALTER TABLE subjects ADD CONSTRAINT subjects_school_batch_name_key UNIQUE (school_id, batch_id, name);
+  END IF;
+END $$;
+
+-- An Instructor-type staff member is appointed to one batch, and teaches one
+-- or more of that batch's subjects (staff_subjects). Administrator-type
+-- staff leave this NULL, same as before.
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS batch_id INTEGER REFERENCES batches(id);
+
+CREATE TABLE IF NOT EXISTS staff_subjects (
+  id SERIAL PRIMARY KEY,
+  staff_id INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+  subject_id INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  school_id INTEGER REFERENCES schools(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (staff_id, subject_id)
+);

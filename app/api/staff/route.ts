@@ -10,11 +10,14 @@ export async function GET(req: NextRequest) {
   if ('error' in auth) return auth.error;
   const search = req.nextUrl.searchParams.get('search') || '';
   const db = getDb();
+  const query = `SELECT s.*, b.name as batch_name,
+      COALESCE((SELECT array_agg(ss.subject_id) FROM staff_subjects ss WHERE ss.staff_id = s.id), '{}') as subject_ids
+    FROM staff s LEFT JOIN batches b ON s.batch_id = b.id
+    WHERE s.school_id = ?${search ? ' AND (s.name ILIKE ? OR s.designation ILIKE ? OR s.mobile ILIKE ?)' : ''}
+    ORDER BY s.name`;
   const items = search
-    ? await db
-        .prepare('SELECT * FROM staff WHERE school_id = ? AND (name ILIKE ? OR designation ILIKE ? OR mobile ILIKE ?) ORDER BY name')
-        .all(auth.session.schoolId, `%${search}%`, `%${search}%`, `%${search}%`)
-    : await db.prepare('SELECT * FROM staff WHERE school_id = ? ORDER BY name').all(auth.session.schoolId);
+    ? await db.prepare(query).all(auth.session.schoolId, `%${search}%`, `%${search}%`, `%${search}%`)
+    : await db.prepare(query).all(auth.session.schoolId);
   return NextResponse.json({ items });
 }
 
@@ -25,15 +28,34 @@ export async function POST(req: NextRequest) {
   if (!data.name) return NextResponse.json({ error: 'Name is required.' }, { status: 400 });
 
   const staffType = data.staff_type === 'Administrator' ? 'Administrator' : 'Instructor';
-  if (staffType === 'Administrator' && !data.email) {
-    return NextResponse.json({ error: 'Email is required for Administrator staff (used to send their login).' }, { status: 400 });
+  // Default on (existing behaviour), so forms that don't send this yet keep working.
+  const createAccount = data.create_account === undefined || data.create_account === null ? true : !!Number(data.create_account);
+  if (createAccount && !data.email) {
+    return NextResponse.json({ error: 'Email is required to create a login (or turn off "Create login account").' }, { status: 400 });
   }
 
   const db = getDb();
+
+  let batchId: number | null = null;
+  let subjectIds: number[] = [];
+  if (staffType === 'Instructor') {
+    if (data.batch_id) {
+      const batch = await db.prepare('SELECT id FROM batches WHERE id = ? AND school_id = ?').get(data.batch_id, auth.session.schoolId);
+      if (!batch) return NextResponse.json({ error: 'Batch not found.' }, { status: 400 });
+      batchId = Number(data.batch_id);
+    }
+    if (Array.isArray(data.subject_ids) && data.subject_ids.length) {
+      const rows = (await db
+        .prepare(`SELECT id FROM subjects WHERE school_id = ? AND batch_id = ? AND id = ANY(?)`)
+        .all(auth.session.schoolId, batchId, data.subject_ids.map(Number))) as any[];
+      subjectIds = rows.map((r) => r.id);
+    }
+  }
+
   const result = await db
     .prepare(
-      `INSERT INTO staff (name, mobile, designation, salary, joining_date, address, remarks, staff_type, email, school_id)
-       VALUES (@name, @mobile, @designation, @salary, @joining_date, @address, @remarks, @staff_type, @email, @school_id)`
+      `INSERT INTO staff (name, mobile, designation, salary, joining_date, address, remarks, staff_type, email, batch_id, school_id)
+       VALUES (@name, @mobile, @designation, @salary, @joining_date, @address, @remarks, @staff_type, @email, @batch_id, @school_id)`
     )
     .run({
       school_id: auth.session.schoolId,
@@ -46,18 +68,26 @@ export async function POST(req: NextRequest) {
       remarks: data.remarks || null,
       staff_type: staffType,
       email: data.email || null,
+      batch_id: batchId,
     });
   const staffId = result.lastInsertRowid as number;
 
-  // Administrator-type staff get their own login (role='staff_admin') so
-  // they can mark attendance for every staff member without needing the
-  // school admin's own account — scoped to attendance only, nothing else
-  // (see requireRole('management', 'staff_admin') in /api/staff-attendance).
+  if (subjectIds.length) {
+    const stmt = db.prepare('INSERT INTO staff_subjects (staff_id, subject_id, school_id) VALUES (?, ?, ?) ON CONFLICT (staff_id, subject_id) DO NOTHING');
+    for (const sid of subjectIds) await stmt.run(staffId, sid, auth.session.schoolId);
+  }
+
+  // Administrator-type staff get a staff_admin login (attendance-marking
+  // only); Instructor-type staff get a teacher login tied to their assigned
+  // batch. Either can be skipped by turning off "Create login account" —
+  // the staff record is still created either way.
   let emailSent = false;
   let emailSkipped = false;
   let generatedUsername: string | undefined;
   let generatedPassword: string | undefined;
-  if (staffType === 'Administrator') {
+
+  if (createAccount) {
+    const role = staffType === 'Administrator' ? 'staff_admin' : 'teacher';
     const username = String(data.email).trim();
     const existing = await db.prepare('SELECT id FROM users WHERE username = ?').get(username);
     if (existing) {
@@ -67,16 +97,22 @@ export async function POST(req: NextRequest) {
     const hash = bcrypt.hashSync(plainPassword, 10);
     const userResult = await db
       .prepare('INSERT INTO users (username, password, role, name, mobile, email, school_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(username, hash, 'staff_admin', data.name, data.mobile || null, data.email, auth.session.schoolId);
+      .run(username, hash, role, data.name, data.mobile || null, data.email, auth.session.schoolId);
     const userId = userResult.lastInsertRowid as number;
     await db.prepare('UPDATE staff SET user_id = ? WHERE id = ?').run(userId, staffId);
+
+    if (role === 'teacher' && batchId) {
+      await db
+        .prepare('INSERT INTO teacher_batches (teacher_user_id, batch_id, school_id) VALUES (?, ?, ?) ON CONFLICT (teacher_user_id, batch_id) DO NOTHING')
+        .run(userId, batchId, auth.session.schoolId);
+    }
 
     const school = (await db.prepare('SELECT name FROM schools WHERE id = ?').get(auth.session.schoolId)) as any;
     const res = await sendCredentialsEmail({
       to: data.email,
       greetingName: (data.name || '').split(' ')[0] || data.name,
       institute: school?.name || 'your institute',
-      role: 'Administrator (Staff Attendance)',
+      role: role === 'staff_admin' ? 'Administrator (Staff Attendance)' : 'Instructor / Teacher',
       username,
       password: plainPassword,
     });

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 import getDb from '@/lib/db';
 import { requireRole } from '@/lib/api-auth';
+import { generatePassword } from '@/lib/generatePassword';
+import { sendCredentialsEmail } from '@/lib/email';
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole('management', 'teacher');
@@ -41,6 +44,11 @@ export async function POST(req: NextRequest) {
   if (!data.batch_id && !data.course) {
     return NextResponse.json({ error: 'Select either a batch or a course.' }, { status: 400 });
   }
+  // Default on: a student login gets created and emailed unless turned off.
+  const createAccount = data.create_account === undefined || data.create_account === null ? true : !!Number(data.create_account);
+  if (createAccount && !data.email) {
+    return NextResponse.json({ error: 'Email is required to create a login (or turn off "Create login account").' }, { status: 400 });
+  }
 
   const db = getDb();
   const result = await db
@@ -77,7 +85,7 @@ export async function POST(req: NextRequest) {
       fee_amount: data.fee_category === 'Custom' && data.fee_amount ? Number(data.fee_amount) : null,
     });
 
-  const studentId = result.lastInsertRowid;
+  const studentId = result.lastInsertRowid as number;
 
   // Monthly/Quarterly batch fee -> auto-create the recurring fee item so
   // arrears start accruing immediately, without a separate manual step on
@@ -109,5 +117,38 @@ export async function POST(req: NextRequest) {
       });
   }
 
-  return NextResponse.json({ id: studentId });
+  let emailSent = false;
+  let emailSkipped = false;
+  let generatedUsername: string | undefined;
+  let generatedPassword: string | undefined;
+  if (createAccount) {
+    const username = String(data.email).trim();
+    const existing = await db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+    if (existing) {
+      return NextResponse.json({ error: 'A login already exists with this email. Use a different email.' }, { status: 400 });
+    }
+    const plainPassword = generatePassword(data.name);
+    const hash = bcrypt.hashSync(plainPassword, 10);
+    const userResult = await db
+      .prepare('INSERT INTO users (username, password, role, name, mobile, email, school_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(username, hash, 'student', data.name, data.mobile || null, data.email, auth.session.schoolId);
+    const userId = userResult.lastInsertRowid as number;
+    await db.prepare('UPDATE students SET user_id = ? WHERE id = ?').run(userId, studentId);
+
+    const school = (await db.prepare('SELECT name FROM schools WHERE id = ?').get(auth.session.schoolId)) as any;
+    const res = await sendCredentialsEmail({
+      to: data.email,
+      greetingName: (data.name || '').split(' ')[0] || data.name,
+      institute: school?.name || 'your institute',
+      role: 'Student',
+      username,
+      password: plainPassword,
+    });
+    emailSent = res.ok;
+    emailSkipped = !!res.skipped;
+    generatedUsername = username;
+    generatedPassword = plainPassword;
+  }
+
+  return NextResponse.json({ id: studentId, username: generatedUsername, password: generatedPassword, emailSent, emailSkipped });
 }

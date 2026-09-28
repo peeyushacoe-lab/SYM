@@ -11,9 +11,14 @@ export interface FieldOption {
 export interface FieldDef {
   name: string;
   label: string;
-  type?: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'tel' | 'email' | 'file' | 'checkbox';
-  options?: FieldOption[];
-  required?: boolean;
+  type?: 'text' | 'number' | 'date' | 'select' | 'multiselect' | 'textarea' | 'tel' | 'email' | 'file' | 'checkbox';
+  // Static list, or computed from the current form values — e.g. a subject
+  // dropdown that only shows subjects belonging to whichever batch was just
+  // selected in another field.
+  options?: FieldOption[] | ((form: Record<string, any>) => FieldOption[]);
+  // Static, or computed from the current form values — e.g. email is only
+  // mandatory when a "create login" toggle elsewhere in the form is on.
+  required?: boolean | ((form: Record<string, any>) => boolean);
   span?: 1 | 2;
   placeholder?: string;
   defaultValue?: string | number;
@@ -144,9 +149,15 @@ export default function CrudPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows]);
 
+  function emptyValueFor(f: FieldDef) {
+    if (f.type === 'checkbox') return 0;
+    if (f.type === 'multiselect') return [];
+    return '';
+  }
+
   function openAdd() {
     const initial: Record<string, any> = {};
-    fields.forEach((f) => (initial[f.name] = f.defaultValue ?? (f.type === 'checkbox' ? 0 : '')));
+    fields.forEach((f) => (initial[f.name] = f.defaultValue ?? emptyValueFor(f)));
     setForm(initial);
     setEditing(null);
     setError('');
@@ -159,7 +170,7 @@ export default function CrudPage({
       (f) =>
         (initial[f.name] = f.computeValue
           ? f.computeValue(row)
-          : row[f.name] ?? f.defaultValue ?? (f.type === 'checkbox' ? 0 : ''))
+          : row[f.name] ?? f.defaultValue ?? emptyValueFor(f))
     );
     setForm(initial);
     setEditing(row);
@@ -304,12 +315,40 @@ export default function CrudPage({
             {fields.map((f) => {
               if (f.hideOnEdit && editing) return null;
               if (f.showIf && !f.showIf(form)) return null;
+              const resolvedRequired = typeof f.required === 'function' ? f.required(form) : !!f.required;
+              const resolvedOptions = typeof f.options === 'function' ? f.options(form) : f.options;
               return (
               <div key={f.name} className={`min-w-0 box-border px-1.5 mb-4 ${f.span === 2 ? 'w-full' : 'w-full sm:w-1/2'}`}>
                 <label className="label">
-                  {f.label} {f.required && <span className="text-danger">*</span>}
+                  {f.label} {resolvedRequired && <span className="text-danger">*</span>}
                 </label>
-                {f.type === 'checkbox' ? (
+                {f.type === 'multiselect' ? (
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 border border-outline-variant/50 rounded-lg px-3 py-2.5 max-h-40 overflow-y-auto">
+                    {(resolvedOptions || []).length === 0 ? (
+                      <span className="text-[12px] text-textSecondary">No options available.</span>
+                    ) : (
+                      (resolvedOptions || []).map((o) => {
+                        const current: any[] = Array.isArray(form[f.name]) ? form[f.name] : [];
+                        const checked = current.some((v) => String(v) === String(o.value));
+                        return (
+                          <label key={o.value} className="flex items-center gap-1.5 text-[13px] text-text cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                const next = checked
+                                  ? current.filter((v) => String(v) !== String(o.value))
+                                  : [...current, o.value];
+                                setForm({ ...form, [f.name]: next });
+                              }}
+                            />
+                            {o.label}
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                ) : f.type === 'checkbox' ? (
                   <button
                     type="button"
                     role="switch"
@@ -328,7 +367,7 @@ export default function CrudPage({
                 ) : f.type === 'select' ? (
                   <select
                     className="input"
-                    required={f.required}
+                    required={resolvedRequired}
                     value={form[f.name] ?? ''}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -338,7 +377,7 @@ export default function CrudPage({
                     }}
                   >
                     <option value="">Select...</option>
-                    {f.options?.map((o) => (
+                    {resolvedOptions?.map((o) => (
                       <option key={o.value} value={o.value}>
                         {o.label}
                       </option>
@@ -374,7 +413,7 @@ export default function CrudPage({
                   <input
                     className="input"
                     type={f.type || 'text'}
-                    required={f.required}
+                    required={resolvedRequired}
                     value={form[f.name] ?? ''}
                     onChange={(e) => setForm({ ...form, [f.name]: e.target.value })}
                     placeholder={f.placeholder}

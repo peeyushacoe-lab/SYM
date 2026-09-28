@@ -109,6 +109,12 @@ export default function CrudPage({
   const [form, setForm] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // When a save response includes freshly-generated login credentials (see
+  // handleSave), show them in-modal instead of just closing — without a
+  // verified sending domain, Resend can only email the account's own
+  // address, so most real staff/students won't actually receive the email
+  // and the admin needs a way to relay the password manually.
+  const [createdCreds, setCreatedCreds] = useState<{ username: string; password: string; emailSent: boolean; emailSkipped: boolean } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -161,6 +167,7 @@ export default function CrudPage({
     setForm(initial);
     setEditing(null);
     setError('');
+    setCreatedCreds(null);
     setModalOpen(true);
   }
 
@@ -175,6 +182,7 @@ export default function CrudPage({
     setForm(initial);
     setEditing(row);
     setError('');
+    setCreatedCreds(null);
     setModalOpen(true);
   }
 
@@ -196,8 +204,16 @@ export default function CrudPage({
       return;
     }
     setSaving(false);
-    setModalOpen(false);
     load();
+    if (data.username && data.password) {
+      // A login was just created — show the credentials in-modal so the
+      // admin can relay them manually. Without a verified sending domain,
+      // Resend can only email your own account address, so most real
+      // staff/students won't get the email even when emailSent isn't false.
+      setCreatedCreds({ username: data.username, password: data.password, emailSent: !!data.emailSent, emailSkipped: !!data.emailSkipped });
+    } else {
+      setModalOpen(false);
+    }
   }
 
   async function handleDelete(row: any) {
@@ -293,6 +309,34 @@ export default function CrudPage({
       </div>
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? `Edit ${title.replace(/s$/, '')}` : addLabel}>
+        {createdCreds ? (
+          <div>
+            <p className="text-sm text-on-surface-variant mb-4">
+              {createdCreds.emailSent
+                ? 'Login credentials have been emailed.'
+                : 'Email is not configured yet (or failed to send) — share these credentials yourself:'}
+            </p>
+            <div className="bg-surface-container-high rounded-lg p-3 text-sm space-y-1 mb-4">
+              <div>
+                <span className="text-on-surface-variant">Username: </span>
+                <b>{createdCreds.username}</b>
+              </div>
+              <div>
+                <span className="text-on-surface-variant">Password: </span>
+                <b>{createdCreds.password}</b>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setCreatedCreds(null);
+                setModalOpen(false);
+              }}
+              className="btn btn-primary w-full"
+            >
+              Done
+            </button>
+          </div>
+        ) : (
         <form onSubmit={handleSave} className="space-y-4">
           {error && (
             <div className="text-sm text-danger bg-dangerLight border border-dangerBorder rounded-lg px-3 py-2">{error}</div>
@@ -433,6 +477,7 @@ export default function CrudPage({
             </button>
           </div>
         </form>
+        )}
       </Modal>
     </div>
   );

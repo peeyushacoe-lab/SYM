@@ -8,6 +8,12 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
   if ('error' in auth) return auth.error;
   const data = await req.json();
   const db = getDb();
+
+  const before = (await db.prepare('SELECT monthly_fee FROM batches WHERE id = ? AND school_id = ?').get(params.id, auth.session.schoolId)) as any;
+  if (!before) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+  const oldFee = Number(before.monthly_fee) || 0;
+  const newFee = Number(data.monthly_fee) || 0;
+
   await db.prepare(
     'UPDATE batches SET name=@name, course=@course, start_date=@start_date, end_date=@end_date, timing=@timing, capacity=@capacity, remarks=@remarks, advance_fee=@advance_fee, monthly_fee=@monthly_fee WHERE id=@id AND school_id=@school_id'
   ).run({
@@ -21,8 +27,25 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
     capacity: data.capacity || 30,
     remarks: data.remarks || null,
     advance_fee: Number(data.advance_fee) ? 1 : 0,
-    monthly_fee: Number(data.monthly_fee) || 0,
+    monthly_fee: newFee,
   });
+
+  // Propagate a changed batch fee to every student still billed at the OLD
+  // default amount — but leave alone any student whose fee item was given a
+  // custom amount (edited away from the batch default on their own record),
+  // so a batch-wide correction doesn't clobber an intentional per-student
+  // override. Only their recurring (Monthly/Quarterly) "Default Fee" item is
+  // touched; one-off charges are untouched.
+  if (newFee > 0 && newFee !== oldFee) {
+    await db
+      .prepare(
+        `UPDATE student_fee_items SET amount = ?
+         WHERE school_id = ? AND active = 1 AND fee_type IN ('Monthly','Quarterly') AND category = 'Default Fee' AND amount = ?
+           AND student_id IN (SELECT id FROM students WHERE batch_id = ? AND school_id = ?)`
+      )
+      .run(newFee, auth.session.schoolId, oldFee, params.id, auth.session.schoolId);
+  }
+
   return NextResponse.json({ ok: true });
 }
 

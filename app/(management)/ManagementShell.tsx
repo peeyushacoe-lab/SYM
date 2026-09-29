@@ -12,6 +12,7 @@ const navItems: NavItem[] = [
   { href: '/alumni', label: 'Alumni', icon: 'diversity_3' },
   { href: '/fees', label: 'Fee collection', icon: 'account_balance_wallet' },
   { href: '/due-fees', label: 'Due fees', icon: 'schedule' },
+  { href: '/charges', label: 'Charges', icon: 'add_card' },
   { href: '/expenses', label: 'Expenses', icon: 'receipt_long' },
   { href: '/enquiries', label: 'Enquiries', icon: 'contact_support' },
   { href: '/exams', label: 'Exams & marks', icon: 'grade' },

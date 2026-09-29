@@ -741,3 +741,14 @@ CREATE TABLE IF NOT EXISTS staff_subjects (
 -- the admin can still edit them before saving, so no DB-level format is
 -- enforced.
 ALTER TABLE staff ADD COLUMN IF NOT EXISTS staff_number TEXT;
+
+-- "Charges" (Sep 2026): a one-off or recurring custom charge (Miscellaneous,
+-- Library Fine, Exam Fee, etc.) applied in bulk to every student in a batch
+-- or course, or to a hand-picked list of students — see app/api/charges.
+-- Each targeted student gets their OWN student_fee_items row (so it accrues
+-- and gets collected through the exact same engine/wizard as any other fee
+-- item); charge_batch is a shared, generated id linking all the rows created
+-- by one "Add charge" action together, purely so the Charges page can show
+-- and cancel them as one group. NULL for the "Default Fee" item auto-created
+-- on Add Student — that one isn't a "charge".
+ALTER TABLE student_fee_items ADD COLUMN IF NOT EXISTS charge_batch TEXT;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import getDb from '@/lib/db';
 import { requireRole } from '@/lib/api-auth';
-import { computeFeeItemDue, effectiveAsOf, monthsSpanned, FeeItem, FeeRow } from '@/lib/feeEngine';
+import { computeFeeItemDue, effectiveAsOf, FeeItem, FeeRow } from '@/lib/feeEngine';
 
 // GET -> next suggested collection: sums ALL elapsed unpaid periods since the
 // fee item's own start date (usually the batch's start date), not just one
@@ -126,7 +126,16 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     // one — the client may only ever be requesting THIS collection.
     periodFrom = due.periodFrom;
     periodTo = due.periodTo;
-    courseFee = monthsSpanned(periodFrom, periodTo, item.fee_type) * Number(item.amount);
+    // Use periodsElapsed straight from the engine rather than re-deriving a
+    // span from the period_from/period_to date strings: monthsSpanned()
+    // counts DISTINCT calendar months touched by the range (via a month-
+    // index difference), which is one too many whenever the period doesn't
+    // start on the 1st of a month — e.g. a single one-month period running
+    // Sep 28 -> Oct 27 touches both September and October, so it returned 2
+    // instead of 1, silently doubling "Total course fee" for that
+    // collection. periodsElapsed is already the correct, consistent number
+    // (it's what's shown everywhere else — pending-fees, due-fees, etc).
+    courseFee = due.periodsElapsed * Number(item.amount);
   }
 
   const remainingDue = Math.max(courseFee - amountPaid - discount, 0);

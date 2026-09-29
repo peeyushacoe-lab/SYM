@@ -43,7 +43,14 @@ export async function GET() {
     db.prepare(`SELECT id, name, dob, mobile FROM students WHERE school_id = ? AND dob IS NOT NULL AND substr(dob, 6, 5) = ? AND COALESCE(status,'Active') = 'Active'`).all(schoolId, mmdd),
     one('SELECT COUNT(DISTINCT student_id) c FROM attendance WHERE school_id = ? AND date = ?', schoolId, today),
     one(`SELECT COUNT(*) c FROM students WHERE school_id = ? AND COALESCE(status,'Active') = 'Active'`, schoolId),
-    one('SELECT COUNT(DISTINCT staff_id) c FROM staff_attendance WHERE school_id = ? AND date = ?', schoolId, today),
+    // staff_attendance has no school_id column of its own (unlike other
+    // tenant tables) — scope it by joining through staff.school_id instead,
+    // the same way app/api/staff-attendance/route.ts already does.
+    one(
+      'SELECT COUNT(DISTINCT sa.staff_id) c FROM staff_attendance sa JOIN staff st ON st.id = sa.staff_id WHERE st.school_id = ? AND sa.date = ?',
+      schoolId,
+      today
+    ),
     db.prepare(
       `SELECT date, status, COUNT(*) c FROM attendance WHERE school_id = ? AND date LIKE ? GROUP BY date, status ORDER BY date`
     ).all(schoolId, `${monthStr}%`),

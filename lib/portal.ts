@@ -1,4 +1,5 @@
 import getDb from './db';
+import { computeFeeItemDue, effectiveAsOf, FeeItem, FeeRow } from './feeEngine';
 
 // Shared read helpers for the student / guardian / teacher portals.
 
@@ -58,12 +59,18 @@ export async function getAttendanceMonth(studentId: number | string, month: stri
 
 export async function getResults(studentId: number | string) {
   const db = getDb();
+  // Exams can target either a batch (e.batch_id) or a standalone course
+  // (e.course, matched against the student's own course column) — course-
+  // based exams were added later and this join originally only handled the
+  // batch case, silently hiding every course-based exam/result for students
+  // enrolled via a course.
   return db
     .prepare(
       `SELECT e.id as exam_id, e.name, e.subject, e.exam_date, e.max_marks,
               m.marks, m.remarks
        FROM exams e
-       JOIN students s ON s.batch_id = e.batch_id AND s.id = ?
+       JOIN students s ON s.id = ?
+         AND ((e.batch_id IS NOT NULL AND s.batch_id = e.batch_id) OR (e.course IS NOT NULL AND s.course = e.course))
        LEFT JOIN exam_marks m ON m.exam_id = e.id AND m.student_id = s.id
        ORDER BY e.exam_date DESC, e.id DESC`
     )
@@ -90,7 +97,66 @@ export async function getFees(studentId: number | string) {
   const payments = (await db
     .prepare('SELECT * FROM payments WHERE student_id = ? ORDER BY created_at DESC')
     .all(studentId)) as any[];
+
+  // A structured fee item (student_fee_items) accrues dues on the fly — see
+  // lib/feeEngine.ts — and only ever gets a row in `fees` once the office
+  // actually collects a payment against it. Without this, a student whose
+  // fee item has accrued periods but hasn't had a first payment yet would
+  // show "Rs. 0 due" here even though management's dashboard/due-fees list
+  // correctly shows a real balance — this mirrors the same fix applied to
+  // those management-side endpoints (matching legacy fee_item_id-NULL rows
+  // by fee_type so old payments aren't double-billed).
+  const activeItems = (await db
+    .prepare('SELECT * FROM student_fee_items WHERE student_id = ? AND active = 1 ORDER BY id')
+    .all(studentId)) as (FeeItem & { category: string | null })[];
+
+  if (activeItems.length) {
+    const batch = (await db
+      .prepare('SELECT b.end_date FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE s.id = ?')
+      .get(studentId)) as any;
+    const asOf = effectiveAsOf(new Date().toISOString().slice(0, 10), batch?.end_date);
+    const usedLegacyIds = new Set<number>();
+    for (const item of activeItems) {
+      const linked = fees.filter((r) => r.fee_item_id === item.id);
+      const legacyMatches = fees.filter(
+        (r) => r.fee_item_id == null && r.fee_type === item.fee_type && !usedLegacyIds.has(r.id)
+      );
+      legacyMatches.forEach((r) => usedLegacyIds.add(r.id));
+      const due = computeFeeItemDue(item, [...linked, ...legacyMatches] as FeeRow[], asOf);
+      if (due.totalDueForRange > 0) {
+        // A synthetic row (id is a string, not a real fees.id) so it can't
+        // be "paid" through the online-payment flow, which needs a real
+        // fees row to reference — it's here purely so the due total and fee
+        // list are accurate. The UI shows it as pending/office-collected.
+        fees.unshift({
+          id: `item-${item.id}`,
+          pending: true,
+          fee_item_id: item.id,
+          receipt_number: null,
+          fee_type: item.fee_type,
+          course_fee: due.totalDueEver,
+          amount_paid: due.totalPaidEver,
+          discount: 0,
+          remaining_due: due.totalDueForRange,
+          payment_date: null,
+          payment_mode: null,
+          period_from: due.periodFrom,
+          period_to: due.periodTo,
+        });
+      }
+    }
+  }
+
   return { fees, payments };
+}
+
+// Total currently outstanding for a student, combining legacy fees rows and
+// live-accrued structured fee items — see getFees() above for why both are
+// needed. Used anywhere a single "due" number is shown without the full fee
+// list (e.g. the guardian children list).
+export async function getTotalDue(studentId: number | string): Promise<number> {
+  const { fees } = await getFees(studentId);
+  return fees.reduce((s: number, f: any) => s + (Number(f.remaining_due) || 0), 0);
 }
 
 export async function getLeaveRequests(studentId: number | string) {

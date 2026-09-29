@@ -74,6 +74,39 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
     fee_amount: data.fee_category === 'Custom' && data.fee_amount ? Number(data.fee_amount) : null,
   });
 
+  // Keep the recurring fee item in sync with batch/fee-type changes. On
+  // create (POST /api/students), a Monthly/Quarterly batch fee auto-creates
+  // one — editing a student used to silently skip this entirely: switching a
+  // student TO Monthly/Quarterly never started billing them, and switching
+  // them AWAY from it (or off a batch) left an old item still accruing.
+  const wantsRecurringItem = !!data.batch_id && ['Monthly', 'Quarterly'].includes(data.fee_type);
+  const existingItem = (await db
+    .prepare('SELECT * FROM student_fee_items WHERE student_id = ? AND school_id = ? AND active = 1 ORDER BY id DESC LIMIT 1')
+    .get(params.id, auth.session.schoolId)) as any;
+
+  if (!wantsRecurringItem && existingItem) {
+    await db.prepare('UPDATE student_fee_items SET active = 0 WHERE id = ?').run(existingItem.id);
+  } else if (wantsRecurringItem && !existingItem) {
+    const batch = (await db.prepare('SELECT monthly_fee FROM batches WHERE id = ? AND school_id = ?').get(data.batch_id, auth.session.schoolId)) as any;
+    const amount = Number(data.batch_monthly_fee) > 0 ? Number(data.batch_monthly_fee) : Number(batch?.monthly_fee) || 0;
+    if (amount > 0) {
+      await db
+        .prepare(
+          `INSERT INTO student_fee_items (student_id, category, fee_type, from_date, amount, partial_supported, school_id)
+           VALUES (@student_id, @category, @fee_type, @from_date, @amount, @partial_supported, @school_id)`
+        )
+        .run({
+          student_id: params.id,
+          category: 'Default Fee',
+          fee_type: data.fee_type,
+          from_date: data.admission_date || existing.admission_date || new Date().toISOString().slice(0, 10),
+          amount,
+          partial_supported: 1,
+          school_id: auth.session.schoolId,
+        });
+    }
+  }
+
   // No login yet, and "Create login account" is on -> create one now. This
   // is also how a student added with the toggle off can get a login later.
   let emailSent = false;
@@ -126,6 +159,16 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   // (student_fee_items, student_documents, library_issues, hostel_allocations,
   // and transport_assignments all have ON DELETE CASCADE already and need no
   // action here; alumni.student_id is ON DELETE SET NULL.)
+  // A student deleted while still holding an active hostel room would
+  // otherwise leave hostel_rooms.occupied_count permanently inflated — the
+  // allocation row itself cascades away, but nothing else decrements the
+  // counter the way the normal "vacate" action does.
+  const activeAllocations = (await db
+    .prepare("SELECT room_id FROM hostel_allocations WHERE student_id = ? AND status != 'Vacated'")
+    .all(params.id)) as any[];
+  for (const a of activeAllocations) {
+    await db.prepare('UPDATE hostel_rooms SET occupied_count = GREATEST(occupied_count - 1, 0) WHERE id = ?').run(a.room_id);
+  }
   await db.prepare('DELETE FROM fees WHERE student_id=?').run(params.id);
   await db.prepare('DELETE FROM payments WHERE student_id=?').run(params.id);
   await db.prepare('DELETE FROM attendance WHERE student_id=?').run(params.id);

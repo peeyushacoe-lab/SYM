@@ -103,7 +103,7 @@ export default function FeesSection({ studentKey }: { studentKey: string }) {
             ) : (
               fees.map((f) => (
                 <tr key={f.id} className="border-b border-borderLight last:border-0">
-                  <td className="px-4 py-2.5">{f.receipt_number || `#${f.id}`}</td>
+                  <td className="px-4 py-2.5">{f.pending ? 'Pending' : f.receipt_number || `#${f.id}`}</td>
                   <td className="px-4 py-2.5">
                     <span className="badge badge-blue">{f.fee_type || 'CourseWise'}</span>
                   </td>
@@ -115,25 +115,31 @@ export default function FeesSection({ studentKey }: { studentKey: string }) {
                   <td className="px-4 py-2.5">{f.payment_date || '-'}</td>
                   <td className="px-4 py-2.5">{f.payment_mode || '-'}</td>
                   <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                    <a
-                      href={`/api/fees/${f.id}/receipt`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="btn btn-outline !py-1 !px-2.5 text-xs mr-1.5"
-                    >
-                      Receipt
-                    </a>
-                    {f.remaining_due > 0 && (
-                      <button
-                        onClick={() => {
-                          setPayModal(f);
-                          setAmount(String(f.remaining_due));
-                          setPayResult('');
-                        }}
-                        className="btn btn-primary !py-1 !px-2.5 text-xs"
-                      >
-                        Pay now
-                      </button>
+                    {f.pending ? (
+                      <span className="text-[11px] text-textSecondary">Contact the office to pay this</span>
+                    ) : (
+                      <>
+                        <a
+                          href={`/api/fees/${f.id}/receipt`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-outline !py-1 !px-2.5 text-xs mr-1.5"
+                        >
+                          Receipt
+                        </a>
+                        {f.remaining_due > 0 && (
+                          <button
+                            onClick={() => {
+                              setPayModal(f);
+                              setAmount(String(f.remaining_due));
+                              setPayResult('');
+                            }}
+                            className="btn btn-primary !py-1 !px-2.5 text-xs"
+                          >
+                            Pay now
+                          </button>
+                        )}
+                      </>
                     )}
                   </td>
                 </tr>

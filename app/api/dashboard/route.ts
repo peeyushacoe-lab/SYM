@@ -66,8 +66,11 @@ export async function GET() {
   for (const row of activeItems) {
     const item: FeeItem = row;
     const payments = (await db
-      .prepare('SELECT amount_paid, discount, period_from, period_to, remaining_due FROM fees WHERE fee_item_id = ?')
-      .all(item.id)) as FeeRow[];
+      .prepare(
+        `SELECT amount_paid, discount, period_from, period_to, remaining_due FROM fees
+         WHERE fee_item_id = ? OR (fee_item_id IS NULL AND student_id = ? AND fee_type = ?)`
+      )
+      .all(item.id, row.student_id, row.fee_type)) as FeeRow[];
     const asOf = effectiveAsOf(today, row.batch_end_date);
     const due = computeFeeItemDue(item, payments, asOf);
     if (due.outstandingAcrossAllTime > 0) {

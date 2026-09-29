@@ -34,11 +34,26 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
     .prepare(`SELECT COALESCE(MAX(NULLIF(regexp_replace(receipt_number, '\\D', '', 'g'), '')::int), 0) as max FROM fees WHERE school_id = ?`)
     .get(auth.session.schoolId)) as any;
 
+  // Payments recorded through the old flat "Record payment" form (before
+  // structured fee items existed) never got a fee_item_id, so they'd
+  // otherwise be invisible here and get double-billed. Pull every fees row
+  // for this student once and match the untracked (fee_item_id IS NULL) ones
+  // to whichever active item shares its fee_type — best-effort, since that's
+  // the only link the old data has, but it's what avoids re-charging money
+  // that was already collected the old way.
+  const allFeesRows = (await db
+    .prepare('SELECT id, fee_item_id, fee_type, amount_paid, discount, period_from, period_to, remaining_due FROM fees WHERE student_id = ? AND school_id = ?')
+    .all(studentId, auth.session.schoolId)) as (FeeRow & { id: number; fee_item_id: number | null; fee_type: string })[];
+  const usedLegacyIds = new Set<number>();
+
   const items = [];
   for (const item of activeItems) {
-    const payments = (await db
-      .prepare('SELECT amount_paid, discount, period_from, period_to, remaining_due FROM fees WHERE fee_item_id = ?')
-      .all(item.id)) as FeeRow[];
+    const linked = allFeesRows.filter((r) => r.fee_item_id === item.id);
+    const legacyMatches = allFeesRows.filter(
+      (r) => r.fee_item_id == null && r.fee_type === item.fee_type && !usedLegacyIds.has(r.id)
+    );
+    legacyMatches.forEach((r) => usedLegacyIds.add(r.id));
+    const payments = [...linked, ...legacyMatches] as FeeRow[];
     const due = computeFeeItemDue(item, payments, asOf);
     if (due.totalDueForRange > 0) {
       items.push({

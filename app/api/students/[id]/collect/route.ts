@@ -42,8 +42,11 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   }
 
   const payments = (await db
-    .prepare('SELECT amount_paid, discount, period_from, period_to, remaining_due FROM fees WHERE fee_item_id = ?')
-    .all(item.id)) as FeeRow[];
+    .prepare(
+      `SELECT amount_paid, discount, period_from, period_to, remaining_due FROM fees
+       WHERE fee_item_id = ? OR (fee_item_id IS NULL AND student_id = ? AND fee_type = ?)`
+    )
+    .all(item.id, studentId, item.fee_type)) as FeeRow[];
 
   const asOf = effectiveAsOf(new Date().toISOString().slice(0, 10), batch?.end_date);
   const due = computeFeeItemDue(item, payments, asOf);
@@ -106,8 +109,11 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
   if (item && isRecurring) {
     const existingPayments = (await db
-      .prepare('SELECT amount_paid, discount, period_from, period_to, remaining_due FROM fees WHERE fee_item_id = ?')
-      .all(item.id)) as FeeRow[];
+      .prepare(
+        `SELECT amount_paid, discount, period_from, period_to, remaining_due FROM fees
+         WHERE fee_item_id = ? OR (fee_item_id IS NULL AND student_id = ? AND fee_type = ?)`
+      )
+      .all(item.id, studentId, item.fee_type)) as FeeRow[];
     const batch = (await db
       .prepare('SELECT b.end_date FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE s.id = ?')
       .get(studentId)) as any;

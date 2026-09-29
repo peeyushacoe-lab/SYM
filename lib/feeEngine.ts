@@ -91,38 +91,20 @@ export function computeFeeItemDue(item: FeeItem, payments: FeeRow[], today = new
     };
   }
 
-  // Is there an existing period that was only partially paid? Keep billing
-  // against that same range until it's cleared, rather than skipping ahead.
-  const openRow = payments
-    .filter((p) => p.period_to && Number(p.remaining_due) > 0)
-    .sort((a, b) => (a.period_to! < b.period_to! ? 1 : -1))[0];
-
-  if (openRow) {
-    return {
-      isRecurring: true,
-      periodsElapsed: 1,
-      periodFrom: openRow.period_from,
-      periodTo: openRow.period_to,
-      totalDueForRange: Number(openRow.remaining_due),
-      outstandingAcrossAllTime: totals.outstanding,
-      totalDueEver: totals.totalDueEver,
-      totalPaidEver: totals.totalPaidEver,
-    };
-  }
-
-  // Otherwise, start right after the latest fully-settled period (or from the
-  // fee item's own start date if nothing has been paid yet at all).
-  const lastClosed = payments
-    .filter((p) => p.period_to && Number(p.remaining_due) === 0)
-    .sort((a, b) => (a.period_to! < b.period_to! ? 1 : -1))[0];
-
-  const rangeStart = lastClosed ? addDays(lastClosed.period_to!, 1) : item.from_date;
-  const startIdx = ymIndex(rangeStart);
-  const todayIdx = ymIndex(today);
-  const periodsElapsed = Math.max(Math.floor((todayIdx - startIdx) / periodMonths) + 1, 0);
-
-  if (periodsElapsed <= 0) {
-    // Fee item starts in the future — nothing due yet.
+  // The amount actually owed right now is always totalDueEver so far minus
+  // everything ever paid against this item (totals.outstanding) — that nets
+  // correctly no matter HOW a past payment was recorded, including a payment
+  // made through the old flat "Record payment" form before this structured
+  // fee item existed (those rows have no period_to, so they can't be matched
+  // to a specific period below, but they unambiguously reduced what's owed).
+  // Using the period-boundary math alone for the amount would silently
+  // ignore any such untracked payment and double-bill for it.
+  //
+  // periodFrom/periodTo/periodsElapsed below are only a *label* for which
+  // range is presently open — based on the last period a period-tracked
+  // payment (via the wizard) fully or partially closed — they don't affect
+  // the amount returned.
+  if (totals.outstanding <= 0) {
     return {
       isRecurring: true,
       periodsElapsed: 0,
@@ -135,14 +117,44 @@ export function computeFeeItemDue(item: FeeItem, payments: FeeRow[], today = new
     };
   }
 
-  const rangeEnd = endOfPeriod(rangeStart, periodsElapsed * periodMonths);
+  // Is there an existing period that was only partially paid? Keep the label
+  // pointed at that same range until it's cleared, rather than skipping ahead.
+  const openRow = payments
+    .filter((p) => p.period_to && Number(p.remaining_due) > 0)
+    .sort((a, b) => (a.period_to! < b.period_to! ? 1 : -1))[0];
+
+  if (openRow) {
+    return {
+      isRecurring: true,
+      periodsElapsed: 1,
+      periodFrom: openRow.period_from,
+      periodTo: openRow.period_to,
+      totalDueForRange: totals.outstanding,
+      outstandingAcrossAllTime: totals.outstanding,
+      totalDueEver: totals.totalDueEver,
+      totalPaidEver: totals.totalPaidEver,
+    };
+  }
+
+  // Otherwise, label the range as starting right after the latest
+  // period-tracked fully-settled period (or from the fee item's own start
+  // date if no period-tracked payment exists yet at all).
+  const lastClosed = payments
+    .filter((p) => p.period_to && Number(p.remaining_due) === 0)
+    .sort((a, b) => (a.period_to! < b.period_to! ? 1 : -1))[0];
+
+  const rangeStart = lastClosed ? addDays(lastClosed.period_to!, 1) : item.from_date;
+  const startIdx = ymIndex(rangeStart);
+  const todayIdx = ymIndex(today);
+  const periodsElapsed = Math.max(Math.floor((todayIdx - startIdx) / periodMonths) + 1, 0);
+  const rangeEnd = periodsElapsed > 0 ? endOfPeriod(rangeStart, periodsElapsed * periodMonths) : null;
 
   return {
     isRecurring: true,
     periodsElapsed,
-    periodFrom: rangeStart,
+    periodFrom: periodsElapsed > 0 ? rangeStart : null,
     periodTo: rangeEnd,
-    totalDueForRange: periodsElapsed * Number(item.amount),
+    totalDueForRange: totals.outstanding,
     outstandingAcrossAllTime: totals.outstanding,
     totalDueEver: totals.totalDueEver,
     totalPaidEver: totals.totalPaidEver,

@@ -752,3 +752,10 @@ ALTER TABLE staff ADD COLUMN IF NOT EXISTS staff_number TEXT;
 -- and cancel them as one group. NULL for the "Default Fee" item auto-created
 -- on Add Student — that one isn't a "charge".
 ALTER TABLE student_fee_items ADD COLUMN IF NOT EXISTS charge_batch TEXT;
+
+-- Explicit period/lecture ordering for the guided Timetable creation
+-- wizard (Batch -> Subject -> Instructor -> start/end time -> order) --
+-- lets a school number its periods (1st, 2nd, ...) independent of the
+-- exact clock times, e.g. if two batches' "2nd period" run at different
+-- times. NULL for older slots; display falls back to sorting by start_time.
+ALTER TABLE timetable_slots ADD COLUMN IF NOT EXISTS lecture_order INTEGER;

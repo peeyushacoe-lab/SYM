@@ -84,7 +84,7 @@ export async function getTimetable(batchId: number | null | undefined) {
     .prepare(
       `SELECT t.*, u.name as teacher_name FROM timetable_slots t
        LEFT JOIN users u ON t.teacher_user_id = u.id
-       WHERE t.batch_id = ? ORDER BY t.day, t.start_time`
+       WHERE t.batch_id = ? ORDER BY t.day, t.lecture_order NULLS LAST, t.start_time`
     )
     .all(batchId) as Promise<any[]>;
 }

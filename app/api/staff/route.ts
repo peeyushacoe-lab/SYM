@@ -9,15 +9,33 @@ export async function GET(req: NextRequest) {
   const auth = await requireRole('management');
   if ('error' in auth) return auth.error;
   const search = req.nextUrl.searchParams.get('search') || '';
+  // batch_id + subject_id together narrow this down to "which instructors
+  // are eligible to teach this subject in this batch" — used by the
+  // Timetable creation wizard's Instructor step, which only makes sense
+  // once a specific batch+subject has been picked.
+  const batchId = req.nextUrl.searchParams.get('batch_id') || '';
+  const subjectId = req.nextUrl.searchParams.get('subject_id') || '';
   const db = getDb();
-  const query = `SELECT s.*, b.name as batch_name,
+
+  let query = `SELECT s.*, b.name as batch_name,
       COALESCE((SELECT array_agg(ss.subject_id) FROM staff_subjects ss WHERE ss.staff_id = s.id), '{}') as subject_ids
     FROM staff s LEFT JOIN batches b ON s.batch_id = b.id
-    WHERE s.school_id = ?${search ? ' AND (s.name ILIKE ? OR s.designation ILIKE ? OR s.mobile ILIKE ?)' : ''}
-    ORDER BY s.name`;
-  const items = search
-    ? await db.prepare(query).all(auth.session.schoolId, `%${search}%`, `%${search}%`, `%${search}%`)
-    : await db.prepare(query).all(auth.session.schoolId);
+    WHERE s.school_id = ?`;
+  const params: any[] = [auth.session.schoolId];
+  if (search) {
+    query += ' AND (s.name ILIKE ? OR s.designation ILIKE ? OR s.mobile ILIKE ?)';
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+  }
+  if (batchId) {
+    query += ' AND s.batch_id = ?';
+    params.push(batchId);
+  }
+  if (subjectId) {
+    query += ' AND EXISTS (SELECT 1 FROM staff_subjects ss2 WHERE ss2.staff_id = s.id AND ss2.subject_id = ?)';
+    params.push(subjectId);
+  }
+  query += ' ORDER BY s.name';
+  const items = await db.prepare(query).all(...params);
   return NextResponse.json({ items });
 }
 

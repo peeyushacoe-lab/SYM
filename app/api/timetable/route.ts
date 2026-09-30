@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
          LEFT JOIN users u ON t.teacher_user_id = u.id
          LEFT JOIN batches b ON t.batch_id = b.id
          WHERE t.school_id = ? AND t.batch_id IN (SELECT batch_id FROM teacher_batches WHERE teacher_user_id = ?)
-         ORDER BY t.day, t.start_time`
+         ORDER BY t.day, t.lecture_order NULLS LAST, t.start_time`
       )
       .all(auth.session.schoolId, auth.session.id);
     return NextResponse.json({ items });
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
        LEFT JOIN users u ON t.teacher_user_id = u.id
        LEFT JOIN batches b ON t.batch_id = b.id
        WHERE t.school_id = ?
-       ORDER BY t.day, t.start_time`
+       ORDER BY t.day, t.lecture_order NULLS LAST, t.start_time`
     )
     .all(auth.session.schoolId);
   return NextResponse.json({ items });
@@ -50,8 +50,17 @@ export async function POST(req: NextRequest) {
   const db = getDb();
   const result = await db
     .prepare(
-      'INSERT INTO timetable_slots (batch_id, day, start_time, end_time, subject, teacher_user_id, school_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO timetable_slots (batch_id, day, start_time, end_time, subject, teacher_user_id, lecture_order, school_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     )
-    .run(data.batch_id, data.day, data.start_time, data.end_time || null, data.subject, data.teacher_user_id || null, auth.session.schoolId);
+    .run(
+      data.batch_id,
+      data.day,
+      data.start_time,
+      data.end_time || null,
+      data.subject,
+      data.teacher_user_id || null,
+      data.lecture_order !== undefined && data.lecture_order !== '' && data.lecture_order !== null ? Number(data.lecture_order) : null,
+      auth.session.schoolId
+    );
   return NextResponse.json({ id: result.lastInsertRowid });
 }

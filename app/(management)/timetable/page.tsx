@@ -3,13 +3,16 @@
 import { useEffect, useState } from 'react';
 import Modal from '@/components/Modal';
 import TimetableGrid, { DAY_NAMES } from '@/components/portal/TimetableGrid';
+import TimetableTextImport from '@/components/TimetableTextImport';
 
 export default function ManagementTimetablePage() {
   const [batches, setBatches] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
   const [batchId, setBatchId] = useState('');
   const [slots, setSlots] = useState<any[]>([]);
   const [modal, setModal] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({ day: '0', start_time: '', end_time: '', subject: '', teacher_user_id: '' });
@@ -33,6 +36,9 @@ export default function ManagementTimetablePage() {
     fetch(`/api/timetable?batch_id=${batchId}`)
       .then((r) => r.json())
       .then((d) => setSlots(d.items || []));
+    fetch(`/api/subjects?batch_id=${batchId}`)
+      .then((r) => r.json())
+      .then((d) => setSubjects(d.items || []));
   }
 
   useEffect(load, [batchId]);
@@ -76,16 +82,35 @@ export default function ManagementTimetablePage() {
             </option>
           ))}
         </select>
-        <button
-          onClick={() => { setModal(true); setError(''); }}
-          className="btn btn-primary"
-          disabled={!batchId}
-        >
-          Add class slot
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setImportOpen(true)}
+            className="btn btn-outline"
+            disabled={!batchId}
+          >
+            <span className="material-symbols-outlined text-[18px]">content_paste</span>
+            Paste timetable
+          </button>
+          <button
+            onClick={() => { setModal(true); setError(''); }}
+            className="btn btn-primary"
+            disabled={!batchId}
+          >
+            Add class slot
+          </button>
+        </div>
       </div>
 
       <TimetableGrid slots={slots} onDelete={remove} />
+
+      <TimetableTextImport
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onDone={() => { setImportOpen(false); load(); }}
+        batchId={batchId}
+        teachers={teachers}
+        subjects={subjects}
+      />
 
       <Modal open={modal} onClose={() => setModal(false)} title="Add class slot">
         <form onSubmit={submit} className="space-y-4">

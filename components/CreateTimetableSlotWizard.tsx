@@ -36,7 +36,7 @@ export default function CreateTimetableSlotWizard({
 }) {
   const [step, setStep] = useState(0); // 0=batch,1=subject,2=instructor,3=timing
   const [batchId, setBatchId] = useState('');
-  const [day, setDay] = useState('0');
+  const [days, setDays] = useState<number[]>([0]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [subjectId, setSubjectId] = useState('');
   const [instructors, setInstructors] = useState<Instructor[]>([]);
@@ -56,7 +56,7 @@ export default function CreateTimetableSlotWizard({
     // slot to the batch you're already looking at — needs one less click.
     setStep(0);
     setBatchId(initialBatchId || '');
-    setDay('0');
+    setDays([0]);
     setSubjectId('');
     setTeacherUserId('');
     setStartTime('');
@@ -102,9 +102,17 @@ export default function CreateTimetableSlotWizard({
     setStep((s) => Math.max(0, s - 1));
   }
 
+  function toggleDay(idx: number) {
+    setDays((prev) => (prev.includes(idx) ? prev.filter((d) => d !== idx) : [...prev, idx].sort((a, b) => a - b)));
+  }
+
   async function submit() {
     if (!startTime) {
       setError('Start time is required.');
+      return;
+    }
+    if (!days.length) {
+      setError('Select at least one day.');
       return;
     }
     setSaving(true);
@@ -114,7 +122,7 @@ export default function CreateTimetableSlotWizard({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         batch_id: Number(batchId),
-        day: Number(day),
+        days,
         subject: selectedSubject ? selectedSubject.name : '',
         teacher_user_id: teacherUserId ? Number(teacherUserId) : null,
         start_time: startTime,
@@ -125,6 +133,9 @@ export default function CreateTimetableSlotWizard({
     const d = await res.json();
     setSaving(false);
     if (!res.ok) {
+      // Conflict (409) or validation errors both come back as a plain message
+      // from the API — e.g. "Schedule conflict — Tuesday 09:00-10:00: Batch A
+      // already has Physics with Sharma".
       setError(d.error || 'Failed to add slot.');
       return;
     }
@@ -167,17 +178,27 @@ export default function CreateTimetableSlotWizard({
               </select>
             </div>
             <div>
-              <label className="label">Day</label>
-              <select className="input" value={day} onChange={(e) => setDay(e.target.value)}>
+              <label className="label">Day(s)</label>
+              <div className="flex flex-wrap gap-2">
                 {DAY_NAMES.map((d, i) => (
-                  <option key={d} value={i}>
-                    {d}
-                  </option>
+                  <button
+                    type="button"
+                    key={d}
+                    onClick={() => toggleDay(i)}
+                    className={`px-2.5 py-1.5 rounded-lg text-sm border ${
+                      days.includes(i) ? 'bg-tertiary text-white border-tertiary' : 'border-border text-textSecondary'
+                    }`}
+                  >
+                    {d.slice(0, 3)}
+                  </button>
                 ))}
-              </select>
+              </div>
+              <div className="text-xs text-textSecondary mt-1">
+                Select every day this class repeats on — the same subject, instructor and time will be scheduled on each.
+              </div>
             </div>
             <div className="flex justify-end pt-2">
-              <button className="btn btn-primary" disabled={!batchId} onClick={next}>
+              <button className="btn btn-primary" disabled={!batchId || !days.length} onClick={next}>
                 Next
               </button>
             </div>
@@ -258,7 +279,8 @@ export default function CreateTimetableSlotWizard({
         {step === 3 && (
           <div className="space-y-3">
             <div className="text-xs text-textSecondary">
-              {selectedBatch?.name} · {selectedSubject?.name} · {selectedInstructor?.name || 'No instructor'}
+              {selectedBatch?.name} · {selectedSubject?.name} · {selectedInstructor?.name || 'No instructor'} ·{' '}
+              {days.map((d) => DAY_NAMES[d].slice(0, 3)).join(', ')}
             </div>
             <div className="flex flex-wrap -mx-1.5">
               <div className="min-w-0 box-border px-1.5 mb-4 w-full sm:w-1/2">

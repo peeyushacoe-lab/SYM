@@ -85,14 +85,19 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
 // transport_assignments, payroll_runs, staff_attendance) are left alone;
 // deleting their parent row below removes them automatically.
 const PRE_DELETE_ORDER = [
+  // 'subjects' must be deleted before 'batches' below (subjects.batch_id
+  // references batches(id) with no cascade) — it used to sit in
+  // REMAINING_ORDER, which ran *after* batches were gone, causing every
+  // school delete to fail with a foreign-key violation once the school had
+  // any subjects at all.
   'exam_marks', 'attendance', 'teacher_batches', 'student_guardians', 'timetable_slots',
-  'leave_requests', 'homework', 'lesson_plans', 'queries', 'fees', 'payments',
+  'leave_requests', 'homework', 'lesson_plans', 'queries', 'fees', 'payments', 'subjects',
 ];
 const MID_DELETE_ORDER = ['exams', 'students', 'staff', 'batches', 'users'];
 const REMAINING_ORDER = [
   'courses', 'enquiries', 'expenses', 'notices', 'branches', 'fee_categories', 'sms_templates',
   'role_permissions', 'academic_events', 'library_books', 'inventory_items', 'hostel_rooms',
-  'transport_vehicles', 'alumni', 'visitor_logs', 'grade_bands', 'subjects',
+  'transport_vehicles', 'alumni', 'visitor_logs', 'grade_bands',
 ];
 
 export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
